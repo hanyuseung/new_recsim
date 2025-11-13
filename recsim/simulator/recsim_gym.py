@@ -19,10 +19,10 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-import gym
-from gym import spaces
+import gymnasium
+from gymnasium import spaces
 import numpy as np
-from recsim.simulator import environment
+from recsim.simulator import environment  # type: ignore
 
 
 def _dummy_metrics_aggregator(responses, metrics, info):
@@ -38,7 +38,7 @@ def _dummy_metrics_writer(metrics, add_summary_fn):
   return
 
 
-class RecSimGymEnv(gym.Env):
+class RecSimGymEnv(gymnasium.Env):
   """Class to wrap recommender system environment to gym.Env.
 
   Attributes:

@@ -38,7 +38,7 @@ import abc
 import collections
 import itertools
 
-from recsim import document
+from recsim import document # type: ignore
 import six
 
 
