@@ -1,3 +1,121 @@
+# New RecSim (Refactored for Python3 / Gymnasium / PyTorch Workflow)
+
+**New RecSim**은 Google RecSim(2019)을 기반으로 하되,  
+_사용자–아이템 RandomWalk 기반 시뮬레이션을 간결하고 현대적인 환경에서 재구축한 버전입니다._
+
+본 리팩토링은 추천시스템 연구·시뮬레이션을 **PyTorch·Gymnasium·Python3** 환경에서  
+바로 사용할 수 있도록 하기 위해 수행되었습니다.
+
+---
+
+## 1. 주요 변경 사항
+
+### ✔ Python 3 전용
+- six / future 제거
+- modern typing 활용 가능
+- 코드 전체 Python3 문법으로 정리
+
+### ✔ Gym → Gymnasium 기반 Wrapper
+- `recsim_gym.RecSimGymEnv`를 gymnasium API로 재작성  
+  → RL agent / simulation tool과 호환성 상승
+
+### ✔ RandomWalk 기반 상호작용 시뮬레이션 강화
+- 사용자 관심도(user_interests) + 아이템 features 기반 dot-product scoring
+- MNL / Proportional / Cascade Choice Model modern implementation
+- User state update functions 리팩토링
+
+### ✔ PyTorch 친화적 구조
+- 내부는 numpy 기반 유지  
+- 외부에서 torch.tensor 변환이 매우 쉬움
+- 시뮬레이션 데이터를 바로 PyTorch 학습데이터로 만들기 용이
+
+### ✔ 최신 NumPy(2.x) 호환성 확보
+- numpy RandomState 유지
+- np.random.Generator와 충돌 제거
+- randint → integers 로 수정
+
+### ✔ Legacy RecSim 구조 유지
+- document / user / choice_model / environment 전체 구조는 동일  
+- 단, modern 환경에서 동작하도록 전면 정리
+
+---
+
+## 2. 수정된 주요 파일
+
+다음 모듈들이 완전 리팩토링 되었습니다:
+
+| 파일명 | 설명 |
+|-------|------|
+| **document.py** | AbstractDocument / CandidateSet modern 정리 |
+| **user.py** | User state / sampler / response 구조 개선 |
+| **choice_model.py** | MNL / Proportional / Cascade modern re-implementation |
+| **environment.py** | SingleUser / MultiUser 환경 정리 |
+| **recsim_gym.py** | Gymnasium Env Wrapper 신규 작성 |
+| **interest_evolution.py** | 전체 환경 종합: DocumentSampler, UserModel, Reward defined |
+| simul.py | 100 users × 100 step JSON dataset 생성 예제 |
+
+---
+
+## 3. 설치 방법
+
+### 3.1 의존성 설치
+
+```bash
+pip install numpy tqdm torch gymnasium
+```
+### 3.1 예제 실행
+```
+python3 simul.py
+
+```
+
+## 4. 예제 출력
+```json
+{
+  "user_id": 0,
+  "steps": [
+    {
+      "step": 0,
+      "action": [12, 11, 16, 3, 7],
+      "user": [... 20 floats ...],
+      "doc": {
+        "40": [... 20 floats ...],
+        "17": [...],
+        ...
+      },
+      "response": [
+        {"click": 0, "watch_time": 0.0, "liked": 0, "quality": 1.0, "cluster_id": 3},
+        ...
+      ],
+      "reward": 0.0
+    }
+  ]
+}
+```
+이 구조는 바로 다음 목적에 사용할 수 있습니다:
+
+추천 모델 학습용 트레이닝 데이터 생성
+
+행동 정책 평가 (offline RL / simulation)
+
+user preference random-walk 분석
+
+cluster / category 별 CTR 통계 분석
+
+## 5. Flow chart
+```java
+UserSampler → UserState
+                 ↓
+DocumentSampler → CandidateSet
+                 ↓
+ChoiceModel → Selected Action
+                 ↓
+ResponseModel → Click/Watch/Liked
+                 ↓
+UserState Update (RandomWalk)
+
+```
+
 # RecSim: A Configurable Recommender Systems Simulation Platform
 
 RecSim is a configurable platform for authoring simulation environments for
@@ -94,3 +212,5 @@ and
 
 Please refer to the [white paper](http://arxiv.org/abs/1909.04847) for the
 high-level design.
+
+
