@@ -23,13 +23,16 @@ import os
 import time
 
 from absl import flags
-from dopamine.discrete_domains import checkpointer
-import gin.tf
-from gym import spaces
+import gin.torch
+import logging
+from gymnasium import spaces
 import numpy as np
-from recsim.simulator import environment
-import tensorflow.compat.v1 as tf
+import glob
+from recsim.simulator import environment # type: ignore
 
+from torch.utils.tensorboard import SummaryWriter
+import torch
+import json
 
 flags.DEFINE_bool(
     'debug_mode', False,
@@ -105,7 +108,8 @@ class Runner(object):
       max_steps_per_episode: int, maximum number of steps after which an episode
         terminates.
     """
-    tf.logging.info('max_steps_per_episode = %s', max_steps_per_episode)
+    logging.basicConfig(level=logging.INFO)
+    logging.info('max_steps_per_episode = %s', max_steps_per_episode)
 
     if base_dir is None:
       raise ValueError('Missing base_dir.')
@@ -122,15 +126,12 @@ class Runner(object):
     """Sets up the runner by creating and initializing the agent."""
     # Reset the tf default graph to avoid name collisions from previous runs
     # before doing anything else.
-    tf.reset_default_graph()
-    self._summary_writer = tf.summary.FileWriter(self._output_dir)
+    self._summary_writer = SummaryWriter(log_dir=self._output_dir)
     if self._episode_log_file:
-      self._episode_writer = tf.io.TFRecordWriter(
-          os.path.join(self._output_dir, self._episode_log_file))
-    # Set up a session and initialize variables.
-    self._sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+        self._episode_writer = open(
+            os.path.join(self._output_dir, self._episode_log_file), 'wb')
+    # Set up a session and initialize variables
     self._agent = self._create_agent_fn(
-        self._sess,
         self._env,
         summary_writer=self._summary_writer,
         eval_mode=eval_mode)
@@ -141,9 +142,6 @@ class Runner(object):
     if not self._agent.multi_user and isinstance(
         self._env.environment, environment.MultiUserEnvironment):
       raise ValueError('Single-user agent requires single-user environment.')
-    self._summary_writer.add_graph(graph=tf.get_default_graph())
-    self._sess.run(tf.global_variables_initializer())
-    self._sess.run(tf.local_variables_initializer())
 
   def _initialize_checkpointer_and_maybe_resume(self, checkpoint_file_prefix):
     """Reloads the latest checkpoint if it exists.
@@ -164,32 +162,47 @@ class Runner(object):
         checkpoint.
       start_step: The step number to be continued after the latest checkpoint.
     """
-    self._checkpointer = checkpointer.Checkpointer(self._checkpoint_dir,
-                                                   checkpoint_file_prefix)
+    def get_latest_checkpoint_number(checkpoint_dir, prefix):
+        files = glob.glob(os.path.join(checkpoint_dir, f"{prefix}_*.pth"))
+        if not files:
+            return -1
+        versions = []
+        for f in files:
+            basename = os.path.basename(f)
+            try:
+                num = int(basename.replace(prefix + "_", "").replace(".pth", ""))
+                versions.append(num)
+            except ValueError:
+                continue
+        return max(versions) if versions else -1
+
     start_iteration = 0
     start_step = 0
     # Check if checkpoint exists.
     # Note that the existence of checkpoint 0 means that we have finished
     # iteration 0 (so we will start from iteration 1).
-    latest_checkpoint_version = checkpointer.get_latest_checkpoint_number(
-        self._checkpoint_dir)
+    latest_checkpoint_version = get_latest_checkpoint_number(
+        self._checkpoint_dir, checkpoint_file_prefix)
     if latest_checkpoint_version >= 0:
       assert not self._episode_writer, 'Can only log episodes from scratch.'
-      experiment_data = self._checkpointer.load_checkpoint(
-          latest_checkpoint_version)
-      start_iteration = experiment_data['current_iteration'] + 1
-      del experiment_data['current_iteration']
-      start_step = experiment_data['total_steps'] + 1
-      del experiment_data['total_steps']
+      checkpoint_path = os.path.join(self._checkpoint_dir, f"{checkpoint_file_prefix}_{latest_checkpoint_version}.pth")
+      experiment_data = torch.load(checkpoint_path, map_location='cpu')
+
+      start_iteration = experiment_data.get('current_iteration', 0) + 1
+      experiment_data.pop('current_iteration', None)
+
+      start_step = experiment_data.get('total_steps', 0) + 1
+      experiment_data.pop('total_steps', None)
+
       if self._agent.unbundle(self._checkpoint_dir, latest_checkpoint_version,
                               experiment_data):
-        tf.logging.info(
+        logging.info(
             'Reloaded checkpoint and will start from '
             'iteration %d', start_iteration)
     return start_iteration, start_step
 
   def _log_one_step(self, user_obs, doc_obs, slate, responses, reward,
-                    is_terminal, sequence_example):
+                    is_terminal, episode_log):
     """Adds one step of agent-environment interaction into SequenceExample.
 
     Args:
@@ -201,18 +214,14 @@ class Runner(object):
       is_terminal: A boolean for whether a terminal state has been reached
       sequence_example: A SequenceExample proto for logging current episode
     """
-
-    def _add_float_feature(feature, values):
-      feature.feature.add(float_list=tf.train.FloatList(value=values))
-
-    def _add_int64_feature(feature, values):
-      feature.feature.add(int64_list=tf.train.Int64List(value=values))
-
     if self._episode_writer is None:
-      return
-    fl = sequence_example.feature_lists.feature_list
+        return
+
+    step_data = {}
 
     if isinstance(self._env.environment, environment.MultiUserEnvironment):
+      step_data["users"] = []
+
       for i, (single_user,
               single_slate,
               single_user_responses,
@@ -221,34 +230,44 @@ class Runner(object):
                                               responses,
                                               reward)):
         user_space = list(self._env.observation_space.spaces['user'].spaces)[i]
-        _add_float_feature(fl['user_%d' % i], spaces.flatten(
-            user_space, single_user))
-        _add_int64_feature(fl['slate_%d' % i], single_slate)
-        _add_float_feature(fl['reward_%d' % i], [single_reward])
-        for j, response in enumerate(single_user_responses):
-          resp_space = self._env.observation_space.spaces['response'][i][0]
-          for k in response:
-            _add_float_feature(fl['response_%d_%d_%s' % (i, j, k)],
-                               spaces.flatten(resp_space, response))
+        resp_space = self._env.observation_space.spaces['response'][i][0]
+        user_flat = spaces.flatten(user_space, single_user)
+
+        flattened_responses = []
+        for response in single_user_responses:
+            resp_flat = spaces.flatten(resp_space, response)
+            flattened_responses.append(resp_flat)
+
+        step_data["users"].append({
+            "user": user_flat,
+            "slate": single_slate,
+            "reward": single_reward,
+            "responses": flattened_responses,
+        })
     else:  # single-user environment
-      _add_float_feature(
-          fl['user'],
-          spaces.flatten(self._env.observation_space.spaces['user'], user_obs))
-      _add_int64_feature(fl['slate'], slate)
-      for i, response in enumerate(responses):
+        user_flat = spaces.flatten(self._env.observation_space.spaces['user'], user_obs)
         resp_space = self._env.observation_space.spaces['response'][0]
-        for k in response:
-          _add_float_feature(fl['response_%d_%s' % (i, k)],
-                             spaces.flatten(resp_space, response))
-      _add_float_feature(fl['reward'], [reward])
 
-    for i, doc in enumerate(list(doc_obs.values())):
-      doc_space = list(
-          self._env.observation_space.spaces['doc'].spaces.values())[i]
-      _add_float_feature(fl['doc_%d' % i], spaces.flatten(doc_space, doc))
+        flattened_responses = []
+        for response in responses:
+            resp_flat = spaces.flatten(resp_space, response)
+            flattened_responses.append(resp_flat)
 
-    _add_int64_feature(fl['is_terminal'], [is_terminal])
+        step_data.update({
+            "user": user_flat,
+            "slate": slate,
+            "reward": reward,
+            "responses": flattened_responses,
+        })
 
+    doc_list = []
+    for i, doc in enumerate(doc_obs.values()):
+        doc_space = list(self._env.observation_space.spaces['doc'].spaces.values())[i]
+        doc_list.append(spaces.flatten(doc_space, doc))
+    step_data["docs"] = doc_list
+
+    step_data["is_terminal"] = is_terminal
+    episode_log.append(step_data)
   def _run_one_episode(self):
     """Executes a full trajectory of the agent interacting with the environment.
 
@@ -260,7 +279,7 @@ class Runner(object):
 
     start_time = time.time()
 
-    sequence_example = tf.train.SequenceExample()
+    episode_log = []
     observation = self._env.reset()
     action = self._agent.begin_episode(observation)
 
@@ -270,7 +289,7 @@ class Runner(object):
       observation, reward, done, info = self._env.step(action)
       self._log_one_step(last_observation['user'], last_observation['doc'],
                          action, observation['response'], reward, done,
-                         sequence_example)
+                         episode_log)
       # Update environment-specific metrics with responses to the slate.
       self._env.update_metrics(observation['response'], info)
 
@@ -286,10 +305,14 @@ class Runner(object):
         action = self._agent.step(reward, observation)
 
     self._agent.end_episode(reward, observation)
+
     if self._episode_writer is not None:
-      self._episode_writer.write(sequence_example.SerializeToString())
+        for step_data in episode_log:
+            self._episode_writer.write(json.dumps(step_data) + "\n")
+        self._episode_writer.flush()
 
     time_diff = time.time() - start_time
+
     self._update_episode_metrics(
         episode_length=step_number,
         episode_time=time_diff,
@@ -319,9 +342,7 @@ class Runner(object):
     """Writes the metrics to Tensorboard summaries."""
 
     def add_summary(tag, value):
-      summary = tf.Summary(
-          value=[tf.Summary.Value(tag=tag + '/' + suffix, simple_value=value)])
-      self._summary_writer.add_summary(summary, step)
+      self._summary_writer.add_scalar(f"{tag}/{suffix}", value, step)
 
     num_steps = np.sum(self._stats['episode_length'])
     time_per_step = np.sum(self._stats['episode_time']) / num_steps
@@ -360,7 +381,7 @@ class TrainRunner(Runner):
 
   def __init__(self, max_training_steps=250000, num_iterations=100,
                checkpoint_frequency=1, **kwargs):
-    tf.logging.info(
+    logging.info(
         'max_training_steps = %s, number_iterations = %s,'
         'checkpoint frequency = %s iterations.', max_training_steps,
         num_iterations, checkpoint_frequency)
@@ -377,16 +398,16 @@ class TrainRunner(Runner):
 
   def run_experiment(self):
     """Runs a full experiment, spread over multiple iterations."""
-    tf.logging.info('Beginning training...')
+    logging.info('Beginning training...')
     start_iter, total_steps = self._initialize_checkpointer_and_maybe_resume(
         self._checkpoint_file_prefix)
     if self._num_iterations <= start_iter:
-      tf.logging.warning('num_iterations (%d) < start_iteration(%d)',
+      logging.warning('num_iterations (%d) < start_iteration(%d)',
                          self._num_iterations, start_iter)
       return
 
     for iteration in range(start_iter, self._num_iterations):
-      tf.logging.info('Starting iteration %d', iteration)
+      logging.info('Starting iteration %d', iteration)
       total_steps = self._run_train_phase(total_steps)
       if iteration % self._checkpoint_frequency == 0:
         self._checkpoint_experiment(iteration, total_steps)
@@ -420,7 +441,7 @@ class EvalRunner(Runner):
                min_interval_secs=30,
                train_base_dir=None,
                **kwargs):
-    tf.logging.info('max_eval_episodes = %s', max_eval_episodes)
+    logging.info('max_eval_episodes = %s', max_eval_episodes)
     super(EvalRunner, self).__init__(**kwargs)
     self._max_eval_episodes = max_eval_episodes
     self._test_mode = test_mode
@@ -428,7 +449,7 @@ class EvalRunner(Runner):
 
     self._output_dir = os.path.join(self._base_dir,
                                     'eval_%s' % max_eval_episodes)
-    tf.io.gfile.makedirs(self._output_dir)
+    os.makedirs(self._output_dir, exist_ok=True)
     if train_base_dir is None:
       train_base_dir = self._base_dir
     self._checkpoint_dir = os.path.join(train_base_dir, 'train', 'checkpoints')
@@ -437,29 +458,46 @@ class EvalRunner(Runner):
 
   def run_experiment(self):
     """Runs a full experiment, spread over multiple iterations."""
-    tf.logging.info('Beginning evaluation...')
-    # Use the checkpointer class.
-    self._checkpointer = checkpointer.Checkpointer(
-        self._checkpoint_dir, self._checkpoint_file_prefix)
+    logging.info('Beginning evaluation...')
+
+    def get_latest_checkpoint_number(checkpoint_dir, prefix):
+        files = glob.glob(os.path.join(checkpoint_dir, f"{prefix}_*.pth"))
+        if not files:
+            return -1
+        versions = []
+        for f in files:
+            basename = os.path.basename(f)
+            try:
+                num = int(basename.replace(prefix + "_", "").replace(".pth", ""))
+                versions.append(num)
+            except ValueError:
+                continue
+        return max(versions) if versions else -1
+    # Use the checkpointer class
     checkpoint_version = -1
     # Check new checkpoints in a loop.
     while True:
       # Check if checkpoint exists.
       # Note that the existence of checkpoint 0 means that we have finished
       # iteration 0 (so we will start from iteration 1).
-      latest_checkpoint_version = checkpointer.get_latest_checkpoint_number(
-          self._checkpoint_dir)
+      latest_checkpoint_version = get_latest_checkpoint_number(
+          self._checkpoint_dir,self._checkpoint_file_prefix)
       # checkpoints_iterator already makes sure a new checkpoint exists.
       if latest_checkpoint_version <= checkpoint_version:
         time.sleep(self._min_interval_secs)
         continue
       checkpoint_version = latest_checkpoint_version
-      experiment_data = self._checkpointer.load_checkpoint(
-          latest_checkpoint_version)
-      assert self._agent.unbundle(self._checkpoint_dir,
-                                  latest_checkpoint_version, experiment_data)
+      checkpoint_path = os.path.join(self._checkpoint_dir, f"{self._checkpoint_file_prefix}_{checkpoint_version}.pth")
+      experiment_data = torch.load(checkpoint_path, map_location='cpu')
+
+      if hasattr(self._agent, 'load_state_dict') and 'agent_state_dict' in experiment_data:
+          self._agent.load_state_dict(experiment_data['agent_state_dict'])
+          logging.info(f"Loaded checkpoint version {checkpoint_version}")
+      else:
+          raise RuntimeError("Agent state dict not found in checkpoint")
 
       self._run_eval_phase(experiment_data['total_steps'])
+
       if self._test_mode:
         break
 
@@ -480,6 +518,6 @@ class EvalRunner(Runner):
     self._write_metrics(total_steps, suffix='eval')
 
     output_file = os.path.join(self._output_dir, 'returns_%s' % total_steps)
-    tf.logging.info('eval_file: %s', output_file)
-    with tf.io.gfile.GFile(output_file, 'w+') as f:
-      f.write(str(episode_rewards))
+    logging.info(f'eval_file: {output_file}')
+    with open(output_file, 'w') as f:
+        f.write(str(episode_rewards))

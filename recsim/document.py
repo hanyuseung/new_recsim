@@ -1,140 +1,96 @@
 # coding=utf-8
-# coding=utf-8
 # Copyright 2019 The RecSim Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""Classes to represent and interface with documents."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Classes to represent and interface with documents in RecSim."""
 
 import abc
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
-import six
-
-# Some notes:
-#
-#   These represent properties of the documents. Presumably we can add more or
-#   remove documents from the candidate set. But these do not include features
-#   that depend on both the user and the document.
-#
 
 
-class CandidateSet(object):
-  """Class to represent a collection of AbstractDocuments.
+class CandidateSet:
+    """Collection of AbstractDocuments indexed by document ID."""
 
-     The candidate set is represented as a hashmap (dictionary), with documents
-     indexed by their document ID.
-  """
+    def __init__(self):
+        self._documents = {}
 
-  def __init__(self):
-    """Initializes a document candidate set with 0 documents."""
-    self._documents = {}
+    def size(self):
+        return len(self._documents)
 
-  def size(self):
-    """Returns an integer, the number of documents in this candidate set."""
-    return len(self._documents)
+    def get_all_documents(self):
+        return self.get_documents(self._documents.keys())
 
-  def get_all_documents(self):
-    """Returns all documents."""
-    return self.get_documents(self._documents.keys())
+    def get_documents(self, document_ids):
+        """Get documents by document IDs."""
+        return [self._documents[int(doc_id)] for doc_id in document_ids]
 
-  def get_documents(self, document_ids):
-    """Gets the documents associated with the specified document IDs.
+    def add_document(self, document):
+        self._documents[document.doc_id()] = document
 
-    Args:
-      document_ids: an array representing indices into the candidate set.
-        Indices can be integers or string-encoded integers.
+    def remove_document(self, document):
+        del self._documents[document.doc_id()]
 
-    Returns:
-      (documents) an ordered list of AbstractDocuments associated with the
-        document ids.
-    """
-    return [self._documents[int(k)] for k in document_ids]
+    def create_observation(self):
+        """Return dict of observable document features."""
+        return {
+            str(doc_id): doc.create_observation()
+            for doc_id, doc in self._documents.items()
+        }
 
-  def add_document(self, document):
-    """Adds a document to the candidate set."""
-    self._documents[document.doc_id()] = document
-
-  def remove_document(self, document):
-    """Removes a document from the set (to simulate a changing corpus)."""
-    del self._documents[document.doc_id()]
-
-  def create_observation(self):
-    """Returns a dictionary of observable features of documents."""
-    return {
-        str(k): self._documents[k].create_observation()
-        for k in self._documents.keys()
-    }
-
-  def observation_space(self):
-    return spaces.Dict({
-        str(k): self._documents[k].observation_space()
-        for k in self._documents.keys()
-    })
+    def observation_space(self):
+        """Return gymnasium Dict space."""
+        return spaces.Dict({
+            str(doc_id): doc.observation_space()
+            for doc_id, doc in self._documents.items()
+        })
 
 
-@six.add_metaclass(abc.ABCMeta)
-class AbstractDocumentSampler(object):
-  """Abstract class to sample documents."""
+class AbstractDocumentSampler(abc.ABC):
+    """Abstract class to sample documents."""
 
-  def __init__(self, doc_ctor, seed=0):
-    self._doc_ctor = doc_ctor
-    self._seed = seed
-    self.reset_sampler()
+    def __init__(self, doc_ctor, seed=0):
+        self._doc_ctor = doc_ctor
+        self._seed = seed
+        self.reset_sampler()
 
-  def reset_sampler(self):
-    self._rng = np.random.RandomState(self._seed)
+    def reset_sampler(self):
+        self._rng = np.random.RandomState(self._seed)
 
-  @abc.abstractmethod
-  def sample_document(self):
-    """Samples and return an instantiation of AbstractDocument."""
+    @abc.abstractmethod
+    def sample_document(self):
+        """Return an instance of AbstractDocument."""
 
-  def get_doc_ctor(self):
-    """Returns the constructor/class of the documents that will be sampled."""
-    return self._doc_ctor
+    def get_doc_ctor(self):
+        return self._doc_ctor
 
-  @property
-  def num_clusters(self):
-    """Returns the number of document clusters. Returns 0 if not applicable."""
-    return 0
+    @property
+    def num_clusters(self):
+        return 0
 
-  def update_state(self, documents, responses):
-    """Update document state (if needed) given user's (or users') responses."""
-    pass
+    def update_state(self, documents, responses):
+        """Optional: update document states."""
+        pass
 
 
-@six.add_metaclass(abc.ABCMeta)
-class AbstractDocument(object):
-  """Abstract class to represent a document and its properties."""
+class AbstractDocument(abc.ABC):
+    """Base class representing a document with observable features."""
 
-  # Number of features to represent the document.
-  NUM_FEATURES = None
+    NUM_FEATURES = None
 
-  def __init__(self, doc_id):
-    self._doc_id = doc_id  # Unique identifier for the document
+    def __init__(self, doc_id):
+        self._doc_id = doc_id  # unique integer id
 
-  def doc_id(self):
-    """Returns the document ID."""
-    return self._doc_id
+    def doc_id(self):
+        return self._doc_id
 
-  @abc.abstractmethod
-  def create_observation(self):
-    """Returns observable properties of this document as a float array."""
+    @abc.abstractmethod
+    def create_observation(self):
+        """Return a numpy float array representing document features."""
 
-  @classmethod
-  @abc.abstractmethod
-  def observation_space(cls):
-    """Gym space that defines how documents are represented."""
+    @classmethod
+    @abc.abstractmethod
+    def observation_space(cls):
+        """Return gymnasium space representing document feature shapes."""

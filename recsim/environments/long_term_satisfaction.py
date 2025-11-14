@@ -33,16 +33,16 @@ from __future__ import print_function
 
 from absl import flags
 from absl import logging
-import gin.tf
-from gym import spaces
+import gin.torch
+from gymnasium import spaces
 import numpy as np
-from recsim import document
-from recsim import user
-from recsim.simulator import environment
-from recsim.simulator import recsim_gym
+from recsim import document # type: ignore
+from recsim import user # type: ignore
+from recsim.simulator import environment # type: ignore
+from recsim.simulator import recsim_gym # type: ignore
 
 FLAGS = flags.FLAGS
-
+print(1)
 
 class LTSUserModel(user.AbstractUserModel):
   """Class to model a user with long-term satisfaction dynamics.
