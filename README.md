@@ -53,7 +53,7 @@ _사용자–아이템 RandomWalk 기반 시뮬레이션을 간결하고 현대�
 | **recsim_gym.py** | Gymnasium Env Wrapper 신규 작성 |
 | **interest_evolution.py** | 전체 환경 종합: DocumentSampler, UserModel, Reward defined |
 | simulate_api.py | json 혹은 csv 로 randomwalk 시뮬레이션 해주는 API |
-| test_simul.py | csv로 10*20 시뮬레이션 결과를 출력해준다. |
+| test_simul.py | csv,json으로 10*10 시뮬레이션 결과를 출력해준다. |
 
 ---
 
@@ -66,32 +66,28 @@ pip install recsim numpy tqdm torch gymnasium
 ```
 ### 3.2 예제 실행
 ```
-python3 simulate_api.py
+python3 test_simul.py
 ```
 
 ## 4. 예제 출력
 ```csv
-user_id,step,user_0,user_1,user_2,user_3,user_4,user_5,user_6,user_7,user_8,user_9,user_10,user_11,user_12,user_13,user_14,user_15,user_16,user_17,user_18,user_19,response_click,response_watch_time,response_liked,response_quality,response_cluster_id,doc_0_feat_0,doc_0_feat_1,doc_0_feat_2,doc_0_feat_3,...,doc_19_feat_19
-0,0,0.6491,0.9365,-0.3731,0.3846,0.7527,0.7892,-0.8299,-0.9218,-0.6603,0.7562,-0.8033,-0.1577,0.9157,0.0663,0.3837,-0.3689,0.3730,0.6692,-0.9634,0.5002,0,0.0,0,1.0,3,0,0,0,0,...,0
-
+user_id,step,user_0,user_1,user_2,user_3,user_4,user_5,user_6,user_7,user_8,user_9,user_10,user_11,user_12,user_13,user_14,user_15,user_16,user_17,user_18,user_19,response_click,response_watch_time,response_liked,response_quality,response_cluster_id
+0,0,0.6491,0.9365,-0.3731,0.3846,0.7527,0.7892,-0.8299,-0.9218,-0.6603,0.7562,-0.8033,-0.1577,0.9157,0.0663,0.3837,-0.3689,0.3730,0.6692,-0.9634,0.5002,0,0.0,0,1.0,3
 ```
 컬럼 의미
 
-| 컬럼명                   | 설명                            |
-| --------------------- | ----------------------------- |
-| `user_id`             | 시뮬레이션된 유저 번호                  |
-| `step`                | 해당 유저의 t-step                 |
-| `user_0` ~ `user_19`  | 유저 상태 벡터 (20차원)               |
-| `response_click`      | 클릭 여부 (0/1)                   |
-| `response_watch_time` | 시청 시간                         |
-| `response_liked`      | 좋아요 여부                        |
-| `response_quality`    | 문서 품질                         |
-| `response_cluster_id` | 문서 클러스터 ID                    |
-| `doc_X_feat_Y`        | 문서 X의 feature vector 중 Y번째 요소 |
+| 컬럼명                   | 설명                                |
+| --------------------- | --------------------------------- |
+| `user_id`             | 시뮬레이션된 유저 번호                      |
+| `step`                | 해당 유저의 t-step                     |
+| `user_0` ~ `user_19`  | 유저 상태 벡터 (20차원 latent preference) |
+| `response_click`      | 클릭 여부 (0/1)                       |
+| `response_watch_time` | 시청 시간                             |
+| `response_liked`      | 좋아요 여부                            |
+| `response_quality`    | 문서 품질                             |
+| `response_cluster_id` | 문서 클러스터 ID                        |
 
-doc_X_feat_Y는 원하는 feature기반 시뮬레이션을 할때 사용됩니다.  
-하지만 randomwalk기반의 추천 시뮬레이션에서 이는 사용되지 않기 때문에,  
-대부분 doc_X_feat_Y는 0값을 갖습니다. 
+문서 feature은 random-walk 기반 시뮬레이션에서는 필요하지 않아 제거했습니다.
 
 이 구조는 바로 다음 목적에 사용할 수 있습니다:
 
@@ -103,7 +99,7 @@ user preference random-walk 분석
 
 cluster / category 별 CTR 통계 분석
 
-## 5. API 사용법 ( simulate_user_csv/json() )
+## 5. API 사용법 ( `simulate_user_csv/json()` )
 
 ### 사용 예시
 
@@ -149,10 +145,9 @@ DocumentSampler → CandidateSet
                  ↓
 ChoiceModel → Selected Action
                  ↓
-ResponseModel → Click/Watch/Liked
+ResponseModel → Click / Watch / Like
                  ↓
 UserState Update (RandomWalk)
-
 ```
 
 # RecSim: A Configurable Recommender Systems Simulation Platform

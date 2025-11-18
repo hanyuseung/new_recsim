@@ -13,3 +13,12 @@ if __name__ == "__main__":
         global_seed=42,
         sim_seed=1,
     )
+    simulate_users_csv(
+        slate_size=5,
+        num_candidates=20,
+        num_users=10,
+        steps=10,
+        file_name="data1.csv",
+        global_seed=42,
+        sim_seed=1,
+    )

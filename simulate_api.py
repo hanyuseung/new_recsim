@@ -11,9 +11,8 @@ def convert_doc_obs(doc_obs):
     return {int(k): v.tolist() for k, v in doc_obs.items()}
 
 
-def run_single_episode(env, steps):
+def run_single_episode(env, steps=100):
     """한 명의 유저에 대해 steps 만큼 시뮬레이션"""
-
     obs = env.reset()
 
     slate_size = env._environment.slate_size
@@ -35,15 +34,14 @@ def run_single_episode(env, steps):
             else obs["user"]
         )
 
-        # doc obs 변환
-        doc_obs = convert_doc_obs(obs["doc"])
+        # response 그대로 유지
+        responses = obs["response"]
 
         episode_data.append({
             "step": t,
             "action": action.tolist(),
             "user": user_obs,
-            "doc": doc_obs,
-            "response": obs["response"],
+            "response": responses,
             "reward": reward
         })
 
@@ -63,42 +61,44 @@ def simulate_users_json(
     sim_seed=1,
 ):
     """
-    전체 시뮬레이션 API
+    전체 시뮬레이션 API — JSONL 저장
+    (문서 feature 제거 버전)
 
     Args:
-        slate_size (int)       : 추천 개수 (top k)
-        num_candidates (int)   : 한 타임스텝에서 사용자에게 보여줄 수 있는 후보 item 수
+        slate_size (int)       : 추천 개수 (top-k)
+        num_candidates (int)   : 후보 item 수
         steps (int)            : 한 유저당 step 수
-        num_users (int)        : 몇 명의 유저를 시뮬레이션할지
+        num_users (int)        : 유저 수
         file_name (str)        : 출력 jsonl 파일명
-        global_seed (int)      : 행동(action) 랜덤 시드
-        sim_seed (int)         : RecSim 환경 내부 랜덤 시드
+        global_seed (int)      : 행동(action) 시드
+        sim_seed (int)         : RecSim 내부 RNG 시드
     """
 
-    # 전역 numpy RNG 설정 (action + 기타 외부 RNG 통일)
+    # 전역 RNG 통일
     np.random.seed(global_seed)
 
     env_config = {
         "slate_size": slate_size,
         "num_candidates": num_candidates,
         "resample_documents": True,
-        "seed": sim_seed,   # RecSim 내부 RNG (document/user/choice model)
+        "seed": sim_seed,
     }
 
     env = create_environment(env_config)
 
     with open(file_name, "w", encoding="utf-8") as f:
-        for user_id in tqdm(range(num_users), desc="Simulating Users"):
+        for user_id in tqdm(range(num_users), desc="Simulating Users (JSON)"):
+
             episode = run_single_episode(env, steps=steps)
-            f.write(
-                json.dumps({
-                    "user_id": user_id,
-                    "steps": episode
-                }, ensure_ascii=False) + "\n"
-            )
 
-    print(f"저장 완료: {file_name}")
+            record = {
+                "user_id": user_id,
+                "steps": episode
+            }
 
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    print(f"[JSON] 저장 완료: {file_name}")
 
 
 
@@ -112,7 +112,7 @@ def simulate_users_csv(
     global_seed=42,
     sim_seed=1,
 ):
-    """CSV 저장 버전"""
+    """문서 feature 제거 버전 CSV 저장 함수"""
 
     np.random.seed(global_seed)
 
@@ -130,10 +130,7 @@ def simulate_users_csv(
     action_cols = ["action"]
     reward_col = ["reward"]
 
-    # 문서 feature: doc_id 0~num_candidates-1, feature 0~19 기준으로 flatten
-    doc_cols = [f"doc_{d}_feat_{k}" for d in range(num_candidates) for k in range(20)]
-
-    # response: 클릭/워치타임/liked/quality/cluster_id 저장
+    # response columns only (문서 feature 제거)
     resp_cols = []
     for i in range(slate_size):
         resp_cols += [
@@ -144,7 +141,7 @@ def simulate_users_csv(
             f"resp_{i}_cluster",
         ]
 
-    header = ["user_id", "step"] + user_cols + action_cols + reward_col + doc_cols + resp_cols
+    header = ["user_id", "step"] + user_cols + action_cols + reward_col + resp_cols
 
     with open(file_name, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -156,25 +153,17 @@ def simulate_users_csv(
             for step_data in episode:
                 row = []
 
-                # user, step
+                # 기본 정보
                 row += [user_id, step_data["step"]]
 
-                # user features
+                # user state
                 row += step_data["user"]
 
-                # action
+                # action (slate 문서 id 5개 → "12,3,7,18,5")
                 row += [",".join(map(str, step_data["action"]))]
 
                 # reward
                 row += [step_data["reward"]]
-
-                # doc features flatten
-                docs = step_data["doc"]
-                for d in range(num_candidates):
-                    if d in docs:
-                        row += docs[d]
-                    else:
-                        row += [0.0] * 20  # 없는 문서는 0 padding
 
                 # response flatten
                 responses = step_data["response"]
