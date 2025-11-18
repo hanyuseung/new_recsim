@@ -90,8 +90,8 @@ user_id,step,user_0,user_1,user_2,user_3,user_4,user_5,user_6,user_7,user_8,user
 | `doc_X_feat_Y`        | 문서 X의 feature vector 중 Y번째 요소 |
 
 doc_X_feat_Y는 원하는 feature기반 시뮬레이션을 할때 사용됩니다.  
-하지만 randomwalk기반의 추천 시뮬레이션에서 이는 필요하지 않기 때문에,  
-모든 doc_X_feat_Y는 0값을 갖습니다. 
+하지만 randomwalk기반의 추천 시뮬레이션에서 이는 사용되지 않기 때문에,  
+대부분 doc_X_feat_Y는 0값을 갖습니다. 
 
 이 구조는 바로 다음 목적에 사용할 수 있습니다:
 
