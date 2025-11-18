@@ -52,7 +52,8 @@ _사용자–아이템 RandomWalk 기반 시뮬레이션을 간결하고 현대�
 | **environment.py** | SingleUser / MultiUser 환경 정리 |
 | **recsim_gym.py** | Gymnasium Env Wrapper 신규 작성 |
 | **interest_evolution.py** | 전체 환경 종합: DocumentSampler, UserModel, Reward defined |
-| simul.py | 100 users × 100 step JSON dataset 생성 예제 |
+| simulate_api.py | json 혹은 csv 로 randomwalk 시뮬레이션 해주는 API |
+| test_simul.py | csv로 10*20 시뮬레이션 결과를 출력해준다. |
 
 ---
 
@@ -61,37 +62,37 @@ _사용자–아이템 RandomWalk 기반 시뮬레이션을 간결하고 현대�
 ### 3.1 의존성 설치
 
 ```bash
-pip install numpy tqdm torch gymnasium
+pip install recsim numpy tqdm torch gymnasium
 ```
-### 3.1 예제 실행
+### 3.2 예제 실행
 ```
-python3 simul.py
-
+python3 simulate_api.py
 ```
 
 ## 4. 예제 출력
-```json
-{
-  "user_id": 0,
-  "steps": [
-    {
-      "step": 0,
-      "action": [12, 11, 16, 3, 7],
-      "user": [... 20 floats ...],
-      "doc": {
-        "40": [... 20 floats ...],
-        "17": [...],
-        ...
-      },
-      "response": [
-        {"click": 0, "watch_time": 0.0, "liked": 0, "quality": 1.0, "cluster_id": 3},
-        ...
-      ],
-      "reward": 0.0
-    }
-  ]
-}
+```csv
+user_id,step,user_0,user_1,user_2,user_3,user_4,user_5,user_6,user_7,user_8,user_9,user_10,user_11,user_12,user_13,user_14,user_15,user_16,user_17,user_18,user_19,response_click,response_watch_time,response_liked,response_quality,response_cluster_id,doc_0_feat_0,doc_0_feat_1,doc_0_feat_2,doc_0_feat_3,...,doc_19_feat_19
+0,0,0.6491,0.9365,-0.3731,0.3846,0.7527,0.7892,-0.8299,-0.9218,-0.6603,0.7562,-0.8033,-0.1577,0.9157,0.0663,0.3837,-0.3689,0.3730,0.6692,-0.9634,0.5002,0,0.0,0,1.0,3,0,0,0,0,...,0
+
 ```
+컬럼 의미
+
+| 컬럼명                   | 설명                            |
+| --------------------- | ----------------------------- |
+| `user_id`             | 시뮬레이션된 유저 번호                  |
+| `step`                | 해당 유저의 t-step                 |
+| `user_0` ~ `user_19`  | 유저 상태 벡터 (20차원)               |
+| `response_click`      | 클릭 여부 (0/1)                   |
+| `response_watch_time` | 시청 시간                         |
+| `response_liked`      | 좋아요 여부                        |
+| `response_quality`    | 문서 품질                         |
+| `response_cluster_id` | 문서 클러스터 ID                    |
+| `doc_X_feat_Y`        | 문서 X의 feature vector 중 Y번째 요소 |
+
+doc_X_feat_Y는 원하는 feature기반 시뮬레이션을 할때 사용됩니다.  
+하지만 randomwalk기반의 추천 시뮬레이션에서 이는 필요하지 않기 때문에,  
+모든 doc_X_feat_Y는 0값을 갖습니다. 
+
 이 구조는 바로 다음 목적에 사용할 수 있습니다:
 
 추천 모델 학습용 트레이닝 데이터 생성
@@ -102,7 +103,45 @@ user preference random-walk 분석
 
 cluster / category 별 CTR 통계 분석
 
-## 5. Flow chart
+## 5. API 사용법 ( simulate_user_csv/json() )
+
+### 사용 예시
+
+```python
+simulate_users_csv(
+    slate_size=5,
+    num_candidates=20,
+    num_users=100,
+    steps=100,
+    file_name="sim_output.csv",
+    global_seed=42,
+    sim_seed=1,
+)
+
+simulate_users_json(
+    slate_size=5,
+    num_candidates=20,
+    num_users=100,
+    steps=100,
+    file_name="sim_output.json",
+    global_seed=42,
+    sim_seed=1,
+)
+```
+
+### 파라미터 상세
+| 파라미터             | 타입  | 기본값              | 설명                                              |
+| ---------------- | --- | ---------------- | ----------------------------------------------- |
+| `slate_size`     | int | 5                | 매 step에서 추천할 문서 개수(K). Top-K recommendation에 해당 |
+| `num_candidates` | int | 20               | 한 타임스텝에서 사용자에게 보여줄 수 있는 전체 후보 아이템 수             |
+| `num_users`      | int | 100              | 시뮬레이션할 유저 수                                     |
+| `steps`          | int | 100              | 각 유저가 수행할 step 수 (interaction sequence 길이)      |
+| `file_name`      | str | "sim_output.csv" | 저장될 CSV 파일 이름                                   |
+| `global_seed`    | int | 42               | 외부(random action 등)에 사용되는 RNG seed              |
+| `sim_seed`       | int | 1                | RecSim 내부(document/user/choice model) RNG seed  |
+
+
+## 6. Flow chart
 ```java
 UserSampler → UserState
                  ↓
