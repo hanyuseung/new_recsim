@@ -152,13 +152,9 @@ def simulate_users_csv(
         resp_cols += [
             f"resp_{i}_click",
             f"resp_{i}_click_doc_id",     # ← 추가
-            f"resp_{i}_watch",
-            f"resp_{i}_liked",
-            f"resp_{i}_quality",
-            f"resp_{i}_cluster",
         ]
 
-    header = ["user_id", "step"] + user_cols + action_cols + reward_col + resp_cols
+    header = ["user_id", "step"] + action_cols + reward_col + resp_cols
 
     with open(file_name, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -174,7 +170,7 @@ def simulate_users_csv(
                 row += [user_id, step_data["step"]]
 
                 # user state
-                row += step_data["user"]
+                #row += step_data["user"]
 
                 # action (slate 문서 id 5개 → "12,3,7,18,5")
                 row += [",".join(map(str, step_data["action"]))]
@@ -187,11 +183,7 @@ def simulate_users_csv(
                 for resp in responses:
                     row += [
                         resp["click"],
-                        resp["click_doc_id"], 
-                        float(resp["watch_time"]),
-                        resp["liked"],
-                        float(resp["quality"]),
-                        resp["cluster_id"],
+                        resp["click_doc_id"]
                     ]
 
                 writer.writerow(row)
