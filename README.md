@@ -71,33 +71,42 @@ python3 test_simul.py
 
 ## 4. 예제 출력
 ```csv
-user_id,step,user_0,user_1,user_2,user_3,user_4,user_5,user_6,user_7,user_8,user_9,user_10,user_11,user_12,user_13,user_14,user_15,user_16,user_17,user_18,user_19,response_click,response_watch_time,response_liked,response_quality,response_cluster_id
-0,0,0.6491,0.9365,-0.3731,0.3846,0.7527,0.7892,-0.8299,-0.9218,-0.6603,0.7562,-0.8033,-0.1577,0.9157,0.0663,0.3837,-0.3689,0.3730,0.6692,-0.9634,0.5002,0,0.0,0,1.0,3
+user_id,step,user_0,user_1,user_2,user_3,user_4,user_5,user_6,user_7,user_8,user_9,user_10,user_11,user_12,user_13,user_14,user_15,user_16,user_17,user_18,user_19,action,reward,resp_0_click,resp_0_click_doc_id,resp_0_watch,resp_0_liked,resp_0_quality,resp_0_cluster,resp_1_click,resp_1_click_doc_id,resp_1_watch,resp_1_liked,resp_1_quality,resp_1_cluster,resp_2_click,resp_2_click_doc_id,resp_2_watch,resp_2_liked,resp_2_quality,resp_2_cluster,resp_3_click,resp_3_click_doc_id,resp_3_watch,resp_3_liked,resp_3_quality,resp_3_cluster,resp_4_click,resp_4_click_doc_id,resp_4_watch,resp_4_liked,resp_4_quality,resp_4_cluster
+0,0,0.6491,0.9365,-0.3731,0.3846,0.7527,0.7892,-0.8299,-0.9218,-0.6603,0.7562,-0.8033,-0.1577,0.9157,0.0663,0.3837,-0.3689,0.3730,0.6692,-0.9634,0.5002,"12,3,7,18,5",1.0,0,-1,0.0,0,1.0,3,1,7,4.0,0,1.0,3,0,-1,0.0,0,1.0,3,0,-1,0.0,0,1.0,3,0,-1,0.0,0,1.0,3
+
 ```
 컬럼 의미
 
-| 컬럼명                   | 설명                                |
-| --------------------- | --------------------------------- |
-| `user_id`             | 시뮬레이션된 유저 번호                      |
-| `step`                | 해당 유저의 t-step                     |
-| `user_0` ~ `user_19`  | 유저 상태 벡터 (20차원 latent preference) |
-| `response_click`      | 클릭 여부 (0/1)                       |
-| `response_watch_time` | 시청 시간                             |
-| `response_liked`      | 좋아요 여부                            |
-| `response_quality`    | 문서 품질                             |
-| `response_cluster_id` | 문서 클러스터 ID                        |
+| 컬럼명                   | 설명                                                             |
+| --------------------- | -------------------------------------------------------------- |
+| `user_id`             | 시뮬레이션된 유저 번호 |
+| `step`                | 해당 유저의 t-step |
+| `user_0` ~ `user_19`  | 유저 latent preference 벡터 |
+| `action`              | 해당 step에서 추천한 slate item 5개의 document ID 리스트 (`"12,3,7,18,5"`) |
+| `reward`              | 클릭에 따른 reward (watch time 기반) |
+| `resp_i_click`        | i번째 추천 아이템 클릭 여부 (0/1) |
+| `resp_i_click_doc_id` | 클릭한 경우 문서 ID (클릭 안 하면 -1) |
+| `resp_i_watch`        | 시청 시간 |
+| `resp_i_liked`        | 좋아요 여부 |
+| `resp_i_quality`      | 문서 품질 |
+| `resp_i_cluster`      | 문서의 cluster ID  |
+
+- Implicit : click 
+- Explicit : click_doc_id
+
+watch, liked, quality는 필요없어서 출력시 삭제할 예정입니다.
 
 문서 feature은 random-walk 기반 시뮬레이션에서는 필요하지 않아 제거했습니다.
 
 이 구조는 바로 다음 목적에 사용할 수 있습니다:
 
-추천 모델 학습용 트레이닝 데이터 생성
+- 추천 모델 학습용 트레이닝 데이터 생성
 
-행동 정책 평가 (offline RL / simulation)
+- 행동 정책 평가 (offline RL / simulation)
 
-user preference random-walk 분석
+- user preference random-walk 분석
 
-cluster / category 별 CTR 통계 분석
+- cluster / category 별 CTR 통계 분석
 
 ## 5. API 사용법 ( `simulate_user_csv/json()` )
 
@@ -105,9 +114,9 @@ cluster / category 별 CTR 통계 분석
 
 ```python
 simulate_users_csv(
-    slate_size=5,
-    num_candidates=20,
-    num_users=100,
+    slate_size=5,       # top - k
+    num_candidates=40,  # item 개수
+    num_users=100,      # user 수
     steps=100,
     file_name="sim_output.csv",
     global_seed=42,
@@ -116,7 +125,7 @@ simulate_users_csv(
 
 simulate_users_json(
     slate_size=5,
-    num_candidates=20,
+    num_candidates=40,
     num_users=100,
     steps=100,
     file_name="sim_output.json",
@@ -126,15 +135,15 @@ simulate_users_json(
 ```
 
 ### 파라미터 상세
-| 파라미터             | 타입  | 기본값              | 설명                                              |
-| ---------------- | --- | ---------------- | ----------------------------------------------- |
-| `slate_size`     | int | 5                | 매 step에서 추천할 문서 개수(K). Top-K recommendation에 해당 |
-| `num_candidates` | int | 20               | 한 타임스텝에서 사용자에게 보여줄 수 있는 전체 후보 아이템 수             |
-| `num_users`      | int | 100              | 시뮬레이션할 유저 수                                     |
-| `steps`          | int | 100              | 각 유저가 수행할 step 수 (interaction sequence 길이)      |
-| `file_name`      | str | "sim_output.csv" | 저장될 CSV 파일 이름                                   |
-| `global_seed`    | int | 42               | 외부(random action 등)에 사용되는 RNG seed              |
-| `sim_seed`       | int | 1                | RecSim 내부(document/user/choice model) RNG seed  |
+| 파라미터            | 타입  | 기본값                                        | 설명                                                   |
+| ---------------- | --- | ------------------------------------------ | ---------------------------------------------------- |
+| `slate_size`     | int | 5                                          | 각 step에서 추천할 item 개수 (Top-K recommendation)          |
+| `num_candidates` | int | 20                                         | 전체 후보 item 수 (item ID는 0 ~ num_candidates-1)         |
+| `num_users`      | int | 100                                        | 시뮬레이션할 사용자 수                                         |
+| `steps`          | int | 100                                        | 각 사용자가 수행하는 interaction 길이 (episode length)          |
+| `file_name`      | str | `".csv"` 또는 `".jsonl"` | 저장될 파일 이름 (CSV 또는 JSONL)                             |
+| `global_seed`    | int | 42                                         | 외부 랜덤 요소(action 샘플링 등)에 사용되는 RNG 시드                  |
+| `sim_seed`       | int | 1                                          | RecSim 내부 RNG 시드 (user, documents, choice model 샘플링) |
 
 
 ## 6. Flow chart
