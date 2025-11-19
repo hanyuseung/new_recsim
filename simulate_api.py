@@ -61,20 +61,10 @@ def simulate_users_json(
     sim_seed=1,
 ):
     """
-    전체 시뮬레이션 API — JSONL 저장
-    (문서 feature 제거 버전)
-
-    Args:
-        slate_size (int)       : 추천 개수 (top-k)
-        num_candidates (int)   : 후보 item 수
-        steps (int)            : 한 유저당 step 수
-        num_users (int)        : 유저 수
-        file_name (str)        : 출력 jsonl 파일명
-        global_seed (int)      : 행동(action) 시드
-        sim_seed (int)         : RecSim 내부 RNG 시드
+    전체 시뮬레이션 API — JSONL 저장 (CSV 포맷과 동일한 attribute)
+    문서 feature 제거 버전
     """
 
-    # 전역 RNG 통일
     np.random.seed(global_seed)
 
     env_config = {
@@ -91,14 +81,40 @@ def simulate_users_json(
 
             episode = run_single_episode(env, steps=steps)
 
+            json_steps = []
+            for step_data in episode:
+
+                # CSV 구조와 동일하게 변환
+                step_json = {
+                    "step": step_data["step"],
+                    "user": step_data["user"],  # 20 floats
+                    "action": ",".join(map(str, step_data["action"])),
+                    "reward": step_data["reward"],
+                    "response": []
+                }
+
+                # responses : CSV와 완벽히 동일
+                for resp in step_data["response"]:
+                    step_json["response"].append({
+                        "click": resp["click"],
+                        "click_doc_id": resp["click_doc_id"],
+                        "watch_time": float(resp["watch_time"]),
+                        "liked": resp["liked"],
+                        "quality": float(resp["quality"]),
+                        "cluster_id": resp["cluster_id"],
+                    })
+
+                json_steps.append(step_json)
+
             record = {
                 "user_id": user_id,
-                "steps": episode
+                "steps": json_steps
             }
 
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     print(f"[JSON] 저장 완료: {file_name}")
+
 
 
 
@@ -135,6 +151,7 @@ def simulate_users_csv(
     for i in range(slate_size):
         resp_cols += [
             f"resp_{i}_click",
+            f"resp_{i}_click_doc_id",     # ← 추가
             f"resp_{i}_watch",
             f"resp_{i}_liked",
             f"resp_{i}_quality",
@@ -170,6 +187,7 @@ def simulate_users_csv(
                 for resp in responses:
                     row += [
                         resp["click"],
+                        resp["click_doc_id"], 
                         float(resp["watch_time"]),
                         resp["liked"],
                         float(resp["quality"]),
