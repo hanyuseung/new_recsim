@@ -1,133 +1,169 @@
-# All symbols in RecSim
+# New RecSim API
 
-## Primary symbols
+Generated from the current implementation.
 
-*   <a href="./recsim.md"><code>recsim</code></a>
-*   <a href="./recsim/agent.md"><code>recsim.agent</code></a>
-*   <a href="./recsim/agent/AbstractEpisodicRecommenderAgent.md"><code>recsim.agent.AbstractEpisodicRecommenderAgent</code></a>
-*   <a href="./recsim/agent/AbstractHierarchicalAgentLayer.md"><code>recsim.agent.AbstractHierarchicalAgentLayer</code></a>
-*   <a href="./recsim/agent/AbstractMultiUserEpisodicRecommenderAgent.md"><code>recsim.agent.AbstractMultiUserEpisodicRecommenderAgent</code></a>
-*   <a href="./recsim/agent/AbstractRecommenderAgent.md"><code>recsim.agent.AbstractRecommenderAgent</code></a>
-*   <a href="./recsim/agents.md"><code>recsim.agents</code></a>
-*   <a href="./recsim/agents/agent_utils.md"><code>recsim.agents.agent_utils</code></a>
-*   <a href="./recsim/agents/agent_utils/GymSpaceWalker.md"><code>recsim.agents.agent_utils.GymSpaceWalker</code></a>
-*   <a href="./recsim/agents/agent_utils/epsilon_greedy_exploration.md"><code>recsim.agents.agent_utils.epsilon_greedy_exploration</code></a>
-*   <a href="./recsim/agents/agent_utils/min_count_exploration.md"><code>recsim.agents.agent_utils.min_count_exploration</code></a>
-*   <a href="./recsim/agents/bandits.md"><code>recsim.agents.bandits</code></a>
-*   <a href="./recsim/agents/bandits/algorithms.md"><code>recsim.agents.bandits.algorithms</code></a>
-*   <a href="./recsim/agents/bandits/algorithms/KLUCB.md"><code>recsim.agents.bandits.algorithms.KLUCB</code></a>
-*   <a href="./recsim/agents/bandits/algorithms/MABAlgorithm.md"><code>recsim.agents.bandits.algorithms.MABAlgorithm</code></a>
-*   <a href="./recsim/agents/bandits/algorithms/ThompsonSampling.md"><code>recsim.agents.bandits.algorithms.ThompsonSampling</code></a>
-*   <a href="./recsim/agents/bandits/algorithms/UCB1.md"><code>recsim.agents.bandits.algorithms.UCB1</code></a>
-*   <a href="./recsim/agents/cluster_bandit_agent.md"><code>recsim.agents.cluster_bandit_agent</code></a>
-*   <a href="./recsim/agents/cluster_bandit_agent/ClusterBanditAgent.md"><code>recsim.agents.cluster_bandit_agent.ClusterBanditAgent</code></a>
-*   <a href="./recsim/agents/cluster_bandit_agent/GreedyClusterAgent.md"><code>recsim.agents.cluster_bandit_agent.GreedyClusterAgent</code></a>
-*   <a href="./recsim/agents/dopamine.md"><code>recsim.agents.dopamine</code></a>
-*   <a href="./recsim/agents/dopamine/dqn_agent.md"><code>recsim.agents.dopamine.dqn_agent</code></a>
-*   <a href="./recsim/agents/dopamine/dqn_agent/DQNAgentRecSim.md"><code>recsim.agents.dopamine.dqn_agent.DQNAgentRecSim</code></a>
-*   <a href="./recsim/agents/dopamine/dqn_agent/DQNNetworkType.md"><code>recsim.agents.dopamine.dqn_agent.DQNNetworkType</code></a>
-*   <a href="./recsim/agents/dopamine/dqn_agent/ObservationAdapter.md"><code>recsim.agents.dopamine.dqn_agent.ObservationAdapter</code></a>
-*   <a href="./recsim/agents/dopamine/dqn_agent/ResponseAdapter.md"><code>recsim.agents.dopamine.dqn_agent.ResponseAdapter</code></a>
-*   <a href="./recsim/agents/dopamine/dqn_agent/recsim_dqn_network.md"><code>recsim.agents.dopamine.dqn_agent.recsim_dqn_network</code></a>
-*   <a href="./recsim/agents/dopamine/dqn_agent/wrapped_replay_buffer.md"><code>recsim.agents.dopamine.dqn_agent.wrapped_replay_buffer</code></a>
-*   <a href="./recsim/agents/full_slate_q_agent.md"><code>recsim.agents.full_slate_q_agent</code></a>
-*   <a href="./recsim/agents/full_slate_q_agent/FullSlateQAgent.md"><code>recsim.agents.full_slate_q_agent.FullSlateQAgent</code></a>
-*   <a href="./recsim/agents/greedy_pctr_agent.md"><code>recsim.agents.greedy_pctr_agent</code></a>
-*   <a href="./recsim/agents/greedy_pctr_agent/GreedyPCTRAgent.md"><code>recsim.agents.greedy_pctr_agent.GreedyPCTRAgent</code></a>
-*   <a href="./recsim/agents/layers.md"><code>recsim.agents.layers</code></a>
-*   <a href="./recsim/agents/layers/abstract_click_bandit.md"><code>recsim.agents.layers.abstract_click_bandit</code></a>
-*   <a href="./recsim/agents/layers/abstract_click_bandit/AbstractClickBanditLayer.md"><code>recsim.agents.layers.abstract_click_bandit.AbstractClickBanditLayer</code></a>
-*   <a href="./recsim/agents/layers/cluster_click_statistics.md"><code>recsim.agents.layers.cluster_click_statistics</code></a>
-*   <a href="./recsim/agents/layers/cluster_click_statistics/ClusterClickStatsLayer.md"><code>recsim.agents.layers.cluster_click_statistics.ClusterClickStatsLayer</code></a>
-*   <a href="./recsim/agents/layers/fixed_length_history.md"><code>recsim.agents.layers.fixed_length_history</code></a>
-*   <a href="./recsim/agents/layers/fixed_length_history/FixedLengthHistoryLayer.md"><code>recsim.agents.layers.fixed_length_history.FixedLengthHistoryLayer</code></a>
-*   <a href="./recsim/agents/layers/sufficient_statistics.md"><code>recsim.agents.layers.sufficient_statistics</code></a>
-*   <a href="./recsim/agents/layers/sufficient_statistics/SufficientStatisticsLayer.md"><code>recsim.agents.layers.sufficient_statistics.SufficientStatisticsLayer</code></a>
-*   <a href="./recsim/agents/layers/temporal_aggregation.md"><code>recsim.agents.layers.temporal_aggregation</code></a>
-*   <a href="./recsim/agents/layers/temporal_aggregation/TemporalAggregationLayer.md"><code>recsim.agents.layers.temporal_aggregation.TemporalAggregationLayer</code></a>
-*   <a href="./recsim/agents/random_agent.md"><code>recsim.agents.random_agent</code></a>
-*   <a href="./recsim/agents/random_agent/RandomAgent.md"><code>recsim.agents.random_agent.RandomAgent</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent.md"><code>recsim.agents.slate_decomp_q_agent</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/SlateDecompQAgent.md"><code>recsim.agents.slate_decomp_q_agent.SlateDecompQAgent</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/compute_probs_tf.md"><code>recsim.agents.slate_decomp_q_agent.compute_probs_tf</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/compute_target_greedy_q.md"><code>recsim.agents.slate_decomp_q_agent.compute_target_greedy_q</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/compute_target_optimal_q.md"><code>recsim.agents.slate_decomp_q_agent.compute_target_optimal_q</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/compute_target_sarsa.md"><code>recsim.agents.slate_decomp_q_agent.compute_target_sarsa</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/compute_target_topk_q.md"><code>recsim.agents.slate_decomp_q_agent.compute_target_topk_q</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/create_agent.md"><code>recsim.agents.slate_decomp_q_agent.create_agent</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/score_documents.md"><code>recsim.agents.slate_decomp_q_agent.score_documents</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/score_documents_tf.md"><code>recsim.agents.slate_decomp_q_agent.score_documents_tf</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/select_slate_greedy.md"><code>recsim.agents.slate_decomp_q_agent.select_slate_greedy</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/select_slate_optimal.md"><code>recsim.agents.slate_decomp_q_agent.select_slate_optimal</code></a>
-*   <a href="./recsim/agents/slate_decomp_q_agent/select_slate_topk.md"><code>recsim.agents.slate_decomp_q_agent.select_slate_topk</code></a>
-*   <a href="./recsim/agents/tabular_q_agent.md"><code>recsim.agents.tabular_q_agent</code></a>
-*   <a href="./recsim/agents/tabular_q_agent/TabularQAgent.md"><code>recsim.agents.tabular_q_agent.TabularQAgent</code></a>
-*   <a href="./recsim/choice_model.md"><code>recsim.choice_model</code></a>
-*   <a href="./recsim/choice_model/AbstractChoiceModel.md"><code>recsim.choice_model.AbstractChoiceModel</code></a>
-*   <a href="./recsim/choice_model/CascadeChoiceModel.md"><code>recsim.choice_model.CascadeChoiceModel</code></a>
-*   <a href="./recsim/choice_model/ExponentialCascadeChoiceModel.md"><code>recsim.choice_model.ExponentialCascadeChoiceModel</code></a>
-*   <a href="./recsim/choice_model/MultinomialLogitChoiceModel.md"><code>recsim.choice_model.MultinomialLogitChoiceModel</code></a>
-*   <a href="./recsim/choice_model/MultinomialProportionalChoiceModel.md"><code>recsim.choice_model.MultinomialProportionalChoiceModel</code></a>
-*   <a href="./recsim/choice_model/NormalizableChoiceModel.md"><code>recsim.choice_model.NormalizableChoiceModel</code></a>
-*   <a href="./recsim/choice_model/ProportionalCascadeChoiceModel.md"><code>recsim.choice_model.ProportionalCascadeChoiceModel</code></a>
-*   <a href="./recsim/choice_model/softmax.md"><code>recsim.choice_model.softmax</code></a>
-*   <a href="./recsim/document.md"><code>recsim.document</code></a>
-*   <a href="./recsim/document/AbstractDocument.md"><code>recsim.document.AbstractDocument</code></a>
-*   <a href="./recsim/document/AbstractDocumentSampler.md"><code>recsim.document.AbstractDocumentSampler</code></a>
-*   <a href="./recsim/document/CandidateSet.md"><code>recsim.document.CandidateSet</code></a>
-*   <a href="./recsim/environments.md"><code>recsim.environments</code></a>
-*   <a href="./recsim/environments/interest_evolution.md"><code>recsim.environments.interest_evolution</code></a>
-*   <a href="./recsim/environments/interest_evolution/FLAGS.md"><code>recsim.environments.interest_evolution.FLAGS</code></a>
-*   <a href="./recsim/environments/interest_evolution/IEvResponse.md"><code>recsim.environments.interest_evolution.IEvResponse</code></a>
-*   <a href="./recsim/environments/interest_evolution/IEvUserDistributionSampler.md"><code>recsim.environments.interest_evolution.IEvUserDistributionSampler</code></a>
-*   <a href="./recsim/environments/interest_evolution/IEvUserModel.md"><code>recsim.environments.interest_evolution.IEvUserModel</code></a>
-*   <a href="./recsim/environments/interest_evolution/IEvUserState.md"><code>recsim.environments.interest_evolution.IEvUserState</code></a>
-*   <a href="./recsim/environments/interest_evolution/IEvVideo.md"><code>recsim.environments.interest_evolution.IEvVideo</code></a>
-*   <a href="./recsim/environments/interest_evolution/IEvVideoSampler.md"><code>recsim.environments.interest_evolution.IEvVideoSampler</code></a>
-*   <a href="./recsim/environments/interest_evolution/UtilityModelUserSampler.md"><code>recsim.environments.interest_evolution.UtilityModelUserSampler</code></a>
-*   <a href="./recsim/environments/interest_evolution/UtilityModelVideoSampler.md"><code>recsim.environments.interest_evolution.UtilityModelVideoSampler</code></a>
-*   <a href="./recsim/environments/interest_evolution/clicked_watchtime_reward.md"><code>recsim.environments.interest_evolution.clicked_watchtime_reward</code></a>
-*   <a href="./recsim/environments/interest_evolution/create_environment.md"><code>recsim.environments.interest_evolution.create_environment</code></a>
-*   <a href="./recsim/environments/interest_evolution/total_clicks_reward.md"><code>recsim.environments.interest_evolution.total_clicks_reward</code></a>
-*   <a href="./recsim/environments/interest_exploration.md"><code>recsim.environments.interest_exploration</code></a>
-*   <a href="./recsim/environments/interest_evolution/FLAGS.md"><code>recsim.environments.interest_exploration.FLAGS</code></a>
-*   <a href="./recsim/environments/interest_exploration/IEClusterUserSampler.md"><code>recsim.environments.interest_exploration.IEClusterUserSampler</code></a>
-*   <a href="./recsim/environments/interest_exploration/IEDocument.md"><code>recsim.environments.interest_exploration.IEDocument</code></a>
-*   <a href="./recsim/environments/interest_exploration/IEResponse.md"><code>recsim.environments.interest_exploration.IEResponse</code></a>
-*   <a href="./recsim/environments/interest_exploration/IETopicDocumentSampler.md"><code>recsim.environments.interest_exploration.IETopicDocumentSampler</code></a>
-*   <a href="./recsim/environments/interest_exploration/IEUserModel.md"><code>recsim.environments.interest_exploration.IEUserModel</code></a>
-*   <a href="./recsim/environments/interest_exploration/IEUserState.md"><code>recsim.environments.interest_exploration.IEUserState</code></a>
-*   <a href="./recsim/environments/interest_exploration/create_environment.md"><code>recsim.environments.interest_exploration.create_environment</code></a>
-*   <a href="./recsim/environments/interest_exploration/total_clicks_reward.md"><code>recsim.environments.interest_exploration.total_clicks_reward</code></a>
-*   <a href="./recsim/environments/long_term_satisfaction.md"><code>recsim.environments.long_term_satisfaction</code></a>
-*   <a href="./recsim/environments/interest_evolution/FLAGS.md"><code>recsim.environments.long_term_satisfaction.FLAGS</code></a>
-*   <a href="./recsim/environments/long_term_satisfaction/LTSDocument.md"><code>recsim.environments.long_term_satisfaction.LTSDocument</code></a>
-*   <a href="./recsim/environments/long_term_satisfaction/LTSDocumentSampler.md"><code>recsim.environments.long_term_satisfaction.LTSDocumentSampler</code></a>
-*   <a href="./recsim/environments/long_term_satisfaction/LTSResponse.md"><code>recsim.environments.long_term_satisfaction.LTSResponse</code></a>
-*   <a href="./recsim/environments/long_term_satisfaction/LTSStaticUserSampler.md"><code>recsim.environments.long_term_satisfaction.LTSStaticUserSampler</code></a>
-*   <a href="./recsim/environments/long_term_satisfaction/LTSUserModel.md"><code>recsim.environments.long_term_satisfaction.LTSUserModel</code></a>
-*   <a href="./recsim/environments/long_term_satisfaction/LTSUserState.md"><code>recsim.environments.long_term_satisfaction.LTSUserState</code></a>
-*   <a href="./recsim/environments/long_term_satisfaction/clicked_engagement_reward.md"><code>recsim.environments.long_term_satisfaction.clicked_engagement_reward</code></a>
-*   <a href="./recsim/environments/long_term_satisfaction/create_environment.md"><code>recsim.environments.long_term_satisfaction.create_environment</code></a>
-*   <a href="./recsim/simulator.md"><code>recsim.simulator</code></a>
-*   <a href="./recsim/simulator/environment.md"><code>recsim.simulator.environment</code></a>
-*   <a href="./recsim/simulator/environment/AbstractEnvironment.md"><code>recsim.simulator.environment.AbstractEnvironment</code></a>
-*   <a href="./recsim/simulator/environment/Environment.md"><code>recsim.simulator.environment.Environment</code></a>
-*   <a href="./recsim/simulator/environment/MultiUserEnvironment.md"><code>recsim.simulator.environment.MultiUserEnvironment</code></a>
-*   <a href="./recsim/simulator/environment/Environment.md"><code>recsim.simulator.environment.SingleUserEnvironment</code></a>
-*   <a href="./recsim/simulator/recsim_gym.md"><code>recsim.simulator.recsim_gym</code></a>
-*   <a href="./recsim/simulator/recsim_gym/RecSimGymEnv.md"><code>recsim.simulator.recsim_gym.RecSimGymEnv</code></a>
-*   <a href="./recsim/simulator/runner_lib.md"><code>recsim.simulator.runner_lib</code></a>
-*   <a href="./recsim/simulator/runner_lib/EvalRunner.md"><code>recsim.simulator.runner_lib.EvalRunner</code></a>
-*   <a href="./recsim/environments/interest_evolution/FLAGS.md"><code>recsim.simulator.runner_lib.FLAGS</code></a>
-*   <a href="./recsim/simulator/runner_lib/Runner.md"><code>recsim.simulator.runner_lib.Runner</code></a>
-*   <a href="./recsim/simulator/runner_lib/TrainRunner.md"><code>recsim.simulator.runner_lib.TrainRunner</code></a>
-*   <a href="./recsim/simulator/runner_lib/load_gin_configs.md"><code>recsim.simulator.runner_lib.load_gin_configs</code></a>
-*   <a href="./recsim/user.md"><code>recsim.user</code></a>
-*   <a href="./recsim/user/AbstractResponse.md"><code>recsim.user.AbstractResponse</code></a>
-*   <a href="./recsim/user/AbstractUserModel.md"><code>recsim.user.AbstractUserModel</code></a>
-*   <a href="./recsim/user/AbstractUserSampler.md"><code>recsim.user.AbstractUserSampler</code></a>
-*   <a href="./recsim/user/AbstractUserState.md"><code>recsim.user.AbstractUserState</code></a>
-*   <a href="./recsim/utils.md"><code>recsim.utils</code></a>
-*   <a href="./recsim/utils/aggregate_video_cluster_metrics.md"><code>recsim.utils.aggregate_video_cluster_metrics</code></a>
-*   <a href="./recsim/utils/write_video_cluster_metrics.md"><code>recsim.utils.write_video_cluster_metrics</code></a>
+- [recsim](recsim.md)
+- [recsim.agent](recsim/agent.md)
+- [recsim.agent.AbstractEpisodicRecommenderAgent](recsim/agent/AbstractEpisodicRecommenderAgent.md)
+- [recsim.agent.AbstractHierarchicalAgentLayer](recsim/agent/AbstractHierarchicalAgentLayer.md)
+- [recsim.agent.AbstractMultiUserEpisodicRecommenderAgent](recsim/agent/AbstractMultiUserEpisodicRecommenderAgent.md)
+- [recsim.agent.AbstractRecommenderAgent](recsim/agent/AbstractRecommenderAgent.md)
+- [recsim.agents](recsim/agents.md)
+- [recsim.agents.adapters](recsim/agents/adapters.md)
+- [recsim.agents.adapters.ObservationAdapter](recsim/agents/adapters/ObservationAdapter.md)
+- [recsim.agents.adapters.ResponseAdapter](recsim/agents/adapters/ResponseAdapter.md)
+- [recsim.agents.agent_utils](recsim/agents/agent_utils.md)
+- [recsim.agents.agent_utils.GymSpaceWalker](recsim/agents/agent_utils/GymSpaceWalker.md)
+- [recsim.agents.agent_utils.epsilon_greedy_exploration](recsim/agents/agent_utils/epsilon_greedy_exploration.md)
+- [recsim.agents.agent_utils.min_count_exploration](recsim/agents/agent_utils/min_count_exploration.md)
+- [recsim.agents.bandits](recsim/agents/bandits.md)
+- [recsim.agents.bandits.algorithms](recsim/agents/bandits/algorithms.md)
+- [recsim.agents.bandits.algorithms.KLUCB](recsim/agents/bandits/algorithms/KLUCB.md)
+- [recsim.agents.bandits.algorithms.MABAlgorithm](recsim/agents/bandits/algorithms/MABAlgorithm.md)
+- [recsim.agents.bandits.algorithms.ThompsonSampling](recsim/agents/bandits/algorithms/ThompsonSampling.md)
+- [recsim.agents.bandits.algorithms.UCB1](recsim/agents/bandits/algorithms/UCB1.md)
+- [recsim.agents.bandits.glm_algorithms](recsim/agents/bandits/glm_algorithms.md)
+- [recsim.agents.bandits.glm_algorithms.GLMAlgorithm](recsim/agents/bandits/glm_algorithms/GLMAlgorithm.md)
+- [recsim.agents.bandits.glm_algorithms.GLM_TS](recsim/agents/bandits/glm_algorithms/GLM_TS.md)
+- [recsim.agents.bandits.glm_algorithms.UCB_GLM](recsim/agents/bandits/glm_algorithms/UCB_GLM.md)
+- [recsim.agents.cluster_bandit_agent](recsim/agents/cluster_bandit_agent.md)
+- [recsim.agents.cluster_bandit_agent.ClusterBanditAgent](recsim/agents/cluster_bandit_agent/ClusterBanditAgent.md)
+- [recsim.agents.cluster_bandit_agent.GreedyClusterAgent](recsim/agents/cluster_bandit_agent/GreedyClusterAgent.md)
+- [recsim.agents.dopamine](recsim/agents/dopamine.md)
+- [recsim.agents.dopamine.dqn_agent](recsim/agents/dopamine/dqn_agent.md)
+- [recsim.agents.dopamine.dqn_agent.DQNAgentRecSim](recsim/agents/dopamine/dqn_agent/DQNAgentRecSim.md)
+- [recsim.agents.dopamine.dqn_agent.DQNNetworkType](recsim/agents/dopamine/dqn_agent/DQNNetworkType.md)
+- [recsim.agents.dopamine.dqn_agent.ObservationAdapter](recsim/agents/dopamine/dqn_agent/ObservationAdapter.md)
+- [recsim.agents.dopamine.dqn_agent.ResponseAdapter](recsim/agents/dopamine/dqn_agent/ResponseAdapter.md)
+- [recsim.agents.dopamine.dqn_agent.load_model](recsim/agents/dopamine/dqn_agent/load_model.md)
+- [recsim.agents.dopamine.dqn_agent.recsim_dqn_network](recsim/agents/dopamine/dqn_agent/recsim_dqn_network.md)
+- [recsim.agents.dopamine.dqn_agent.wrapped_replay_buffer](recsim/agents/dopamine/dqn_agent/wrapped_replay_buffer.md)
+- [recsim.agents.full_slate_q_agent](recsim/agents/full_slate_q_agent.md)
+- [recsim.agents.full_slate_q_agent.FullSlateQAgent](recsim/agents/full_slate_q_agent/FullSlateQAgent.md)
+- [recsim.agents.greedy_pctr_agent](recsim/agents/greedy_pctr_agent.md)
+- [recsim.agents.greedy_pctr_agent.GreedyPCTRAgent](recsim/agents/greedy_pctr_agent/GreedyPCTRAgent.md)
+- [recsim.agents.layers](recsim/agents/layers.md)
+- [recsim.agents.layers.abstract_click_bandit](recsim/agents/layers/abstract_click_bandit.md)
+- [recsim.agents.layers.abstract_click_bandit.AbstractClickBanditLayer](recsim/agents/layers/abstract_click_bandit/AbstractClickBanditLayer.md)
+- [recsim.agents.layers.cluster_click_statistics](recsim/agents/layers/cluster_click_statistics.md)
+- [recsim.agents.layers.cluster_click_statistics.ClusterClickStatsLayer](recsim/agents/layers/cluster_click_statistics/ClusterClickStatsLayer.md)
+- [recsim.agents.layers.fixed_length_history](recsim/agents/layers/fixed_length_history.md)
+- [recsim.agents.layers.fixed_length_history.FixedLengthHistoryLayer](recsim/agents/layers/fixed_length_history/FixedLengthHistoryLayer.md)
+- [recsim.agents.layers.sufficient_statistics](recsim/agents/layers/sufficient_statistics.md)
+- [recsim.agents.layers.sufficient_statistics.SufficientStatisticsLayer](recsim/agents/layers/sufficient_statistics/SufficientStatisticsLayer.md)
+- [recsim.agents.layers.temporal_aggregation](recsim/agents/layers/temporal_aggregation.md)
+- [recsim.agents.layers.temporal_aggregation.TemporalAggregationLayer](recsim/agents/layers/temporal_aggregation/TemporalAggregationLayer.md)
+- [recsim.agents.random_agent](recsim/agents/random_agent.md)
+- [recsim.agents.random_agent.RandomAgent](recsim/agents/random_agent/RandomAgent.md)
+- [recsim.agents.slate_decomp_q_agent](recsim/agents/slate_decomp_q_agent.md)
+- [recsim.agents.slate_decomp_q_agent.SlateDecompQAgent](recsim/agents/slate_decomp_q_agent/SlateDecompQAgent.md)
+- [recsim.agents.slate_decomp_q_agent.compute_probs](recsim/agents/slate_decomp_q_agent/compute_probs.md)
+- [recsim.agents.slate_decomp_q_agent.compute_probs_tf](recsim/agents/slate_decomp_q_agent/compute_probs_tf.md)
+- [recsim.agents.slate_decomp_q_agent.compute_target_greedy_q](recsim/agents/slate_decomp_q_agent/compute_target_greedy_q.md)
+- [recsim.agents.slate_decomp_q_agent.compute_target_optimal_q](recsim/agents/slate_decomp_q_agent/compute_target_optimal_q.md)
+- [recsim.agents.slate_decomp_q_agent.compute_target_sarsa](recsim/agents/slate_decomp_q_agent/compute_target_sarsa.md)
+- [recsim.agents.slate_decomp_q_agent.compute_target_topk_q](recsim/agents/slate_decomp_q_agent/compute_target_topk_q.md)
+- [recsim.agents.slate_decomp_q_agent.create_agent](recsim/agents/slate_decomp_q_agent/create_agent.md)
+- [recsim.agents.slate_decomp_q_agent.score_documents](recsim/agents/slate_decomp_q_agent/score_documents.md)
+- [recsim.agents.slate_decomp_q_agent.score_documents_tf](recsim/agents/slate_decomp_q_agent/score_documents_tf.md)
+- [recsim.agents.slate_decomp_q_agent.score_documents_torch](recsim/agents/slate_decomp_q_agent/score_documents_torch.md)
+- [recsim.agents.slate_decomp_q_agent.select_slate_greedy](recsim/agents/slate_decomp_q_agent/select_slate_greedy.md)
+- [recsim.agents.slate_decomp_q_agent.select_slate_optimal](recsim/agents/slate_decomp_q_agent/select_slate_optimal.md)
+- [recsim.agents.slate_decomp_q_agent.select_slate_topk](recsim/agents/slate_decomp_q_agent/select_slate_topk.md)
+- [recsim.agents.tabular_q_agent](recsim/agents/tabular_q_agent.md)
+- [recsim.agents.tabular_q_agent.TabularQAgent](recsim/agents/tabular_q_agent/TabularQAgent.md)
+- [recsim.agents.torch](recsim/agents/torch.md)
+- [recsim.agents.torch.dqn_agent](recsim/agents/torch/dqn_agent.md)
+- [recsim.agents.torch.dqn_agent.DQNAgentRecSim](recsim/agents/torch/dqn_agent/DQNAgentRecSim.md)
+- [recsim.agents.torch.dqn_agent.DQNNetworkType](recsim/agents/torch/dqn_agent/DQNNetworkType.md)
+- [recsim.agents.torch.dqn_agent.ReplayBuffer](recsim/agents/torch/dqn_agent/ReplayBuffer.md)
+- [recsim.agents.torch.dqn_agent.load_model](recsim/agents/torch/dqn_agent/load_model.md)
+- [recsim.agents.torch.dqn_agent.recsim_dqn_network](recsim/agents/torch/dqn_agent/recsim_dqn_network.md)
+- [recsim.agents.torch.dqn_agent.wrapped_replay_buffer](recsim/agents/torch/dqn_agent/wrapped_replay_buffer.md)
+- [recsim.choice_model](recsim/choice_model.md)
+- [recsim.choice_model.AbstractChoiceModel](recsim/choice_model/AbstractChoiceModel.md)
+- [recsim.choice_model.CascadeChoiceModel](recsim/choice_model/CascadeChoiceModel.md)
+- [recsim.choice_model.ExponentialCascadeChoiceModel](recsim/choice_model/ExponentialCascadeChoiceModel.md)
+- [recsim.choice_model.MultinomialLogitChoiceModel](recsim/choice_model/MultinomialLogitChoiceModel.md)
+- [recsim.choice_model.MultinomialProportionalChoiceModel](recsim/choice_model/MultinomialProportionalChoiceModel.md)
+- [recsim.choice_model.NormalizableChoiceModel](recsim/choice_model/NormalizableChoiceModel.md)
+- [recsim.choice_model.ProportionalCascadeChoiceModel](recsim/choice_model/ProportionalCascadeChoiceModel.md)
+- [recsim.choice_model.softmax](recsim/choice_model/softmax.md)
+- [recsim.config](recsim/config.md)
+- [recsim.config.validate_environment_config](recsim/config/validate_environment_config.md)
+- [recsim.document](recsim/document.md)
+- [recsim.document.AbstractDocument](recsim/document/AbstractDocument.md)
+- [recsim.document.AbstractDocumentSampler](recsim/document/AbstractDocumentSampler.md)
+- [recsim.document.CandidateSet](recsim/document/CandidateSet.md)
+- [recsim.environments](recsim/environments.md)
+- [recsim.environments.interest_evolution](recsim/environments/interest_evolution.md)
+- [recsim.environments.interest_evolution.FLAGS](recsim/environments/interest_evolution/FLAGS.md)
+- [recsim.environments.interest_evolution.IEvResponse](recsim/environments/interest_evolution/IEvResponse.md)
+- [recsim.environments.interest_evolution.IEvUserDistributionSampler](recsim/environments/interest_evolution/IEvUserDistributionSampler.md)
+- [recsim.environments.interest_evolution.IEvUserModel](recsim/environments/interest_evolution/IEvUserModel.md)
+- [recsim.environments.interest_evolution.IEvUserState](recsim/environments/interest_evolution/IEvUserState.md)
+- [recsim.environments.interest_evolution.IEvVideo](recsim/environments/interest_evolution/IEvVideo.md)
+- [recsim.environments.interest_evolution.IEvVideoSampler](recsim/environments/interest_evolution/IEvVideoSampler.md)
+- [recsim.environments.interest_evolution.UtilityModelUserSampler](recsim/environments/interest_evolution/UtilityModelUserSampler.md)
+- [recsim.environments.interest_evolution.UtilityModelVideoSampler](recsim/environments/interest_evolution/UtilityModelVideoSampler.md)
+- [recsim.environments.interest_evolution.clicked_watchtime_reward](recsim/environments/interest_evolution/clicked_watchtime_reward.md)
+- [recsim.environments.interest_evolution.create_environment](recsim/environments/interest_evolution/create_environment.md)
+- [recsim.environments.interest_evolution.total_clicks_reward](recsim/environments/interest_evolution/total_clicks_reward.md)
+- [recsim.environments.interest_exploration](recsim/environments/interest_exploration.md)
+- [recsim.environments.interest_exploration.IEClusterUserSampler](recsim/environments/interest_exploration/IEClusterUserSampler.md)
+- [recsim.environments.interest_exploration.IEDocument](recsim/environments/interest_exploration/IEDocument.md)
+- [recsim.environments.interest_exploration.IEResponse](recsim/environments/interest_exploration/IEResponse.md)
+- [recsim.environments.interest_exploration.IETopicDocumentSampler](recsim/environments/interest_exploration/IETopicDocumentSampler.md)
+- [recsim.environments.interest_exploration.IEUserModel](recsim/environments/interest_exploration/IEUserModel.md)
+- [recsim.environments.interest_exploration.IEUserState](recsim/environments/interest_exploration/IEUserState.md)
+- [recsim.environments.interest_exploration.create_environment](recsim/environments/interest_exploration/create_environment.md)
+- [recsim.environments.interest_exploration.total_clicks_reward](recsim/environments/interest_exploration/total_clicks_reward.md)
+- [recsim.environments.long_term_satisfaction](recsim/environments/long_term_satisfaction.md)
+- [recsim.environments.long_term_satisfaction.LTSDocument](recsim/environments/long_term_satisfaction/LTSDocument.md)
+- [recsim.environments.long_term_satisfaction.LTSDocumentSampler](recsim/environments/long_term_satisfaction/LTSDocumentSampler.md)
+- [recsim.environments.long_term_satisfaction.LTSResponse](recsim/environments/long_term_satisfaction/LTSResponse.md)
+- [recsim.environments.long_term_satisfaction.LTSStaticUserSampler](recsim/environments/long_term_satisfaction/LTSStaticUserSampler.md)
+- [recsim.environments.long_term_satisfaction.LTSUserModel](recsim/environments/long_term_satisfaction/LTSUserModel.md)
+- [recsim.environments.long_term_satisfaction.LTSUserState](recsim/environments/long_term_satisfaction/LTSUserState.md)
+- [recsim.environments.long_term_satisfaction.clicked_engagement_reward](recsim/environments/long_term_satisfaction/clicked_engagement_reward.md)
+- [recsim.environments.long_term_satisfaction.create_environment](recsim/environments/long_term_satisfaction/create_environment.md)
+- [recsim.main](recsim/main.md)
+- [recsim.main.create_agent](recsim/main/create_agent.md)
+- [recsim.main.main](recsim/main/main.md)
+- [recsim.simulation](recsim/simulation.md)
+- [recsim.simulation.convert_doc_obs](recsim/simulation/convert_doc_obs.md)
+- [recsim.simulation.iter_episode](recsim/simulation/iter_episode.md)
+- [recsim.simulation.run_single_episode](recsim/simulation/run_single_episode.md)
+- [recsim.simulation.simulate_users_csv](recsim/simulation/simulate_users_csv.md)
+- [recsim.simulation.simulate_users_json](recsim/simulation/simulate_users_json.md)
+- [recsim.simulation.simulate_users_jsonl](recsim/simulation/simulate_users_jsonl.md)
+- [recsim.simulator](recsim/simulator.md)
+- [recsim.simulator.environment](recsim/simulator/environment.md)
+- [recsim.simulator.environment.AbstractEnvironment](recsim/simulator/environment/AbstractEnvironment.md)
+- [recsim.simulator.environment.Environment](recsim/simulator/environment/Environment.md)
+- [recsim.simulator.environment.MultiUserEnvironment](recsim/simulator/environment/MultiUserEnvironment.md)
+- [recsim.simulator.environment.SingleUserEnvironment](recsim/simulator/environment/SingleUserEnvironment.md)
+- [recsim.simulator.recsim_gym](recsim/simulator/recsim_gym.md)
+- [recsim.simulator.recsim_gym.RecSimGymEnv](recsim/simulator/recsim_gym/RecSimGymEnv.md)
+- [recsim.simulator.runner_lib](recsim/simulator/runner_lib.md)
+- [recsim.simulator.runner_lib.EvalRunner](recsim/simulator/runner_lib/EvalRunner.md)
+- [recsim.simulator.runner_lib.NullWriter](recsim/simulator/runner_lib/NullWriter.md)
+- [recsim.simulator.runner_lib.Runner](recsim/simulator/runner_lib/Runner.md)
+- [recsim.simulator.runner_lib.TrainRunner](recsim/simulator/runner_lib/TrainRunner.md)
+- [recsim.simulator.runner_lib.json_value](recsim/simulator/runner_lib/json_value.md)
+- [recsim.simulator.runner_lib.load_gin_configs](recsim/simulator/runner_lib/load_gin_configs.md)
+- [recsim.spaces](recsim/spaces.md)
+- [recsim.spaces.coerce](recsim/spaces/coerce.md)
+- [recsim.spaces.zeros](recsim/spaces/zeros.md)
+- [recsim.types](recsim/types.md)
+- [recsim.types.EnvironmentConfig](recsim/types/EnvironmentConfig.md)
+- [recsim.types.Observation](recsim/types/Observation.md)
+- [recsim.types.Transition](recsim/types/Transition.md)
+- [recsim.user](recsim/user.md)
+- [recsim.user.AbstractResponse](recsim/user/AbstractResponse.md)
+- [recsim.user.AbstractUserModel](recsim/user/AbstractUserModel.md)
+- [recsim.user.AbstractUserSampler](recsim/user/AbstractUserSampler.md)
+- [recsim.user.AbstractUserState](recsim/user/AbstractUserState.md)
+- [recsim.utils](recsim/utils.md)
+- [recsim.utils.aggregate_video_cluster_metrics](recsim/utils/aggregate_video_cluster_metrics.md)
+- [recsim.utils.write_video_cluster_metrics](recsim/utils/write_video_cluster_metrics.md)

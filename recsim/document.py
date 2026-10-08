@@ -35,17 +35,13 @@ class CandidateSet:
 
     def create_observation(self):
         """Return dict of observable document features."""
-        return {
-            str(doc_id): doc.create_observation()
-            for doc_id, doc in self._documents.items()
-        }
+        return {str(doc_id): doc.create_observation() for doc_id, doc in self._documents.items()}
 
     def observation_space(self):
         """Return gymnasium Dict space."""
-        return spaces.Dict({
-            str(doc_id): doc.observation_space()
-            for doc_id, doc in self._documents.items()
-        })
+        return spaces.Dict(
+            {str(doc_id): doc.observation_space() for doc_id, doc in self._documents.items()}
+        )
 
 
 class AbstractDocumentSampler(abc.ABC):

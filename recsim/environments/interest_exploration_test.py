@@ -21,32 +21,31 @@ from recsim.testing import test_case
 
 
 class InterestExplorationTest(test_case.TestCase):
+    def setUp(self):
+        super(InterestExplorationTest, self).setUp()
+        self._num_topics = 2
+        env_config = {
+            "num_candidates": 20,
+            "slate_size": 2,
+            "resample_documents": False,
+            "seed": 1,
+        }
+        self._env = interest_exploration.create_environment(env_config)
 
-  def setUp(self):
-    super(InterestExplorationTest, self).setUp()
-    self._num_topics = 2
-    env_config = {
-        'num_candidates': 20,
-        'slate_size': 2,
-        'resample_documents': False,
-        'seed': 1,
-    }
-    self._env = interest_exploration.create_environment(env_config)
-
-  def test_step(self):
-    obs0, _ = self._env.reset(seed=0)
-    self.assertEqual((0,), obs0['user'].shape)
-    slate = np.array([0, 1])
-    obs, reward, done, truncated, _ = self._env.step(slate)
-    doc_obs0 = list(obs0['doc'].values())
-    doc_obs = list(obs['doc'].values())
-    for i, resp in enumerate(obs['response']):
-      self.assertFalse(resp['click'])
-      self.assertEqual(doc_obs0[i]['cluster_id'], resp['cluster_id'])
-      self.assertEqual(doc_obs[i]['cluster_id'], resp['cluster_id'])
-    self.assertEqual(0, reward)
-    self.assertFalse(done)
+    def test_step(self):
+        obs0, _ = self._env.reset(seed=0)
+        self.assertEqual((0,), obs0["user"].shape)
+        slate = np.array([0, 1])
+        obs, reward, done, truncated, _ = self._env.step(slate)
+        doc_obs0 = list(obs0["doc"].values())
+        doc_obs = list(obs["doc"].values())
+        for i, resp in enumerate(obs["response"]):
+            self.assertFalse(resp["click"])
+            self.assertEqual(doc_obs0[i]["cluster_id"], resp["cluster_id"])
+            self.assertEqual(doc_obs[i]["cluster_id"], resp["cluster_id"])
+        self.assertEqual(0, reward)
+        self.assertFalse(done)
 
 
-if __name__ == '__main__':
-  test_case.main()
+if __name__ == "__main__":
+    test_case.main()

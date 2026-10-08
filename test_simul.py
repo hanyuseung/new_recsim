@@ -14,7 +14,7 @@ if __name__ == "__main__":
     # )
     simulate_users_csv(
         slate_size=5,
-        num_candidates=20, # item 개수
+        num_candidates=20,  # item 개수
         num_users=20,
         steps=10,
         file_name="data1.csv",

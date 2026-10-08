@@ -8,7 +8,13 @@ import numpy as np
 def softmax(vector):
     """Numerically stable softmax."""
     vector = np.asarray(vector, dtype=np.float64)
-    if vector.ndim != 1 or vector.size == 0 or np.any(np.isnan(vector)) or np.any(np.isposinf(vector)) or np.all(np.isneginf(vector)):
+    if (
+        vector.ndim != 1
+        or vector.size == 0
+        or np.any(np.isnan(vector))
+        or np.any(np.isposinf(vector))
+        or np.all(np.isneginf(vector))
+    ):
         raise ValueError("softmax requires nonempty finite logits (negative infinity is allowed)")
     v = vector - np.max(vector)
     exp_v = np.exp(v)
@@ -30,7 +36,7 @@ class AbstractChoiceModel(abc.ABC):
             self.seed(0)
         return self._rng
 
-    _scores = None          # numpy array of per-document scores
+    _scores = None  # numpy array of per-document scores
     _score_no_click = None  # scalar
 
     @abc.abstractmethod
@@ -75,7 +81,9 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         """Sample index according to normalized (scores + no-click) probs."""
         all_scores = np.append(self._scores, self._score_no_click)
         if not np.all(np.isfinite(all_scores)) or np.any(all_scores < 0) or all_scores.sum() <= 0:
-            raise ValueError("Choice probabilities require finite nonnegative scores with positive sum")
+            raise ValueError(
+                "Choice probabilities require finite nonnegative scores with positive sum"
+            )
         probs = all_scores / np.sum(all_scores)
 
         idx = self.rng.choice(len(probs), p=probs)
@@ -115,7 +123,7 @@ class MultinomialLogitChoiceModel(NormalizableChoiceModel):
 # ======================================================================
 class MultinomialProportionalChoiceModel(NormalizableChoiceModel):
     """Choice model with proportional probabilities:
-        p(i) = (score_i - min_normalizer) / sum(...)
+    p(i) = (score_i - min_normalizer) / sum(...)
     """
 
     def __init__(self, choice_features):
@@ -154,7 +162,11 @@ class CascadeChoiceModel(NormalizableChoiceModel):
         if not (0.0 <= self._attention_prob <= 1.0):
             raise ValueError("attention_prob must be in [0, 1]")
 
-        if self._score_scaling is None or not np.isfinite(self._score_scaling) or self._score_scaling < 0.0:
+        if (
+            self._score_scaling is None
+            or not np.isfinite(self._score_scaling)
+            or self._score_scaling < 0.0
+        ):
             raise ValueError("score_scaling must be nonnegative")
 
     def _positional_normalization(self, scores):
@@ -168,12 +180,10 @@ class CascadeChoiceModel(NormalizableChoiceModel):
         for i in range(len(scores)):
             scaled = self._score_scaling * scores[i]
             if scaled > 1.0:
-                raise ValueError(
-                    f"score_scaling makes probability > 1: original={scores[i]}"
-                )
+                raise ValueError(f"score_scaling makes probability > 1: original={scores[i]}")
 
             click_probs[i] = no_click_prob * self._attention_prob * scaled
-            no_click_prob *= (1.0 - self._attention_prob * scaled)
+            no_click_prob *= 1.0 - self._attention_prob * scaled
 
         self._scores = click_probs
         self._score_no_click = no_click_prob

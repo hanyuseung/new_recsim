@@ -25,83 +25,73 @@ from recsim.testing import test_case
 
 
 class GreedyPCTRAgentTest(test_case.TestCase):
+    def test_find_best_documents(self):
+        action_space = spaces.MultiDiscrete(4 * np.ones((4,)))
+        agent = greedy_pctr_agent.GreedyPCTRAgent(action_space, None)
+        scores = [-1, -2, 4.32, 0, 15, -6, 4.32]
+        indices = agent.findBestDocuments(scores)
+        self.assertAllEqual(indices, [4, 2, 6, 3])
 
-  def test_find_best_documents(self):
-    action_space = spaces.MultiDiscrete(4 * np.ones((4,)))
-    agent = greedy_pctr_agent.GreedyPCTRAgent(action_space, None)
-    scores = [-1, -2, 4.32, 0, 15, -6, 4.32]
-    indices = agent.findBestDocuments(scores)
-    self.assertAllEqual(indices, [4, 2, 6, 3])
+    def test_step(self):
+        # Create a simple user
+        slate_size = 2
+        num_candidates = 5
+        action_space = spaces.MultiDiscrete(num_candidates * np.ones((slate_size,)))
+        user_model = ie.IEUserModel(
+            slate_size, user_state_ctor=ie.IEUserState, response_model_ctor=ie.IEResponse
+        )
 
-  def test_step(self):
-    # Create a simple user
-    slate_size = 2
-    num_candidates = 5
-    action_space = spaces.MultiDiscrete(num_candidates * np.ones((slate_size,)))
-    user_model = ie.IEUserModel(
-        slate_size,
-        user_state_ctor=ie.IEUserState,
-        response_model_ctor=ie.IEResponse)
+        # Create a set of documents
+        document_sampler = ie.IETopicDocumentSampler(seed=1)
+        ieenv = environment.Environment(
+            user_model, document_sampler, num_candidates, slate_size, resample_documents=True
+        )
 
-    # Create a set of documents
-    document_sampler = ie.IETopicDocumentSampler(seed=1)
-    ieenv = environment.Environment(
-        user_model,
-        document_sampler,
-        num_candidates,
-        slate_size,
-        resample_documents=True)
+        # Create agent
+        agent = greedy_pctr_agent.GreedyPCTRAgent(action_space, user_model.avg_user_state)
 
-    # Create agent
-    agent = greedy_pctr_agent.GreedyPCTRAgent(action_space,
-                                              user_model.avg_user_state)
+        # This agent doesn't use the previous user response
+        observation, documents = ieenv.reset()
+        slate = agent.step(1, dict(user=observation, doc=documents))
+        scores = [
+            user_model.avg_user_state.score_document(doc_obs)
+            for doc_obs in list(documents.values())
+        ]
+        expected_slate = sorted(np.argsort(scores)[-2:])
+        self.assertAllEqual(sorted(slate), expected_slate)
 
-    # This agent doesn't use the previous user response
-    observation, documents = ieenv.reset()
-    slate = agent.step(1, dict(user=observation, doc=documents))
-    scores = [
-        user_model.avg_user_state.score_document(doc_obs)
-        for doc_obs in list(documents.values())
-    ]
-    expected_slate = sorted(np.argsort(scores)[-2:])
-    self.assertAllEqual(sorted(slate), expected_slate)
+    def test_bundle_and_unbundle_trivial(self):
+        action_space = spaces.MultiDiscrete(np.ones((1,)))
+        agent = greedy_pctr_agent.GreedyPCTRAgent(action_space, None)
+        self.assertFalse(agent.unbundle("", 0, {}))
+        self.assertEqual({"episode_num": 0}, agent.bundle_and_checkpoint("", 0))
 
-  def test_bundle_and_unbundle_trivial(self):
-    action_space = spaces.MultiDiscrete(np.ones((1,)))
-    agent = greedy_pctr_agent.GreedyPCTRAgent(action_space, None)
-    self.assertFalse(agent.unbundle('', 0, {}))
-    self.assertEqual({
-        'episode_num': 0
-    }, agent.bundle_and_checkpoint('', 0))
+    def test_bundle_and_unbundle(self):
+        # Initialize agent
+        slate_size = 1
+        num_candidates = 3
+        action_space = spaces.MultiDiscrete(num_candidates * np.ones((slate_size,)))
 
-  def test_bundle_and_unbundle(self):
-    # Initialize agent
-    slate_size = 1
-    num_candidates = 3
-    action_space = spaces.MultiDiscrete(num_candidates * np.ones((slate_size,)))
+        user_model = ie.IEUserModel(
+            slate_size, user_state_ctor=ie.IEUserState, response_model_ctor=ie.IEResponse
+        )
+        agent = greedy_pctr_agent.GreedyPCTRAgent(action_space, user_model.avg_user_state)
 
-    user_model = ie.IEUserModel(
-        slate_size,
-        user_state_ctor=ie.IEUserState,
-        response_model_ctor=ie.IEResponse)
-    agent = greedy_pctr_agent.GreedyPCTRAgent(action_space,
-                                              user_model.avg_user_state)
+        # Create a set of documents
+        document_sampler = ie.IETopicDocumentSampler()
+        documents = {}
+        for i in range(num_candidates):
+            video = document_sampler.sample_document()
+            documents[i] = video.create_observation()
 
-    # Create a set of documents
-    document_sampler = ie.IETopicDocumentSampler()
-    documents = {}
-    for i in range(num_candidates):
-      video = document_sampler.sample_document()
-      documents[i] = video.create_observation()
+        # Test that slate indices in correct range and length is correct
+        observation = dict(user=user_model.create_observation(), doc=documents)
+        agent.step(1, observation)
 
-    # Test that slate indices in correct range and length is correct
-    observation = dict(user=user_model.create_observation(), doc=documents)
-    agent.step(1, observation)
-
-    bundle_dict = agent.bundle_and_checkpoint('', 0)
-    self.assertTrue(agent.unbundle('', 0, bundle_dict))
-    self.assertEqual(bundle_dict, agent.bundle_and_checkpoint('', 0))
+        bundle_dict = agent.bundle_and_checkpoint("", 0)
+        self.assertTrue(agent.unbundle("", 0, bundle_dict))
+        self.assertEqual(bundle_dict, agent.bundle_and_checkpoint("", 0))
 
 
-if __name__ == '__main__':
-  test_case.main()
+if __name__ == "__main__":
+    test_case.main()
