@@ -14,17 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Classes for Bandit Algorithms for Generalized Linear Models."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 import abc
 import numpy as np
 from scipy import special
-import six
 
 
-@six.add_metaclass(abc.ABCMeta)
-class GLMAlgorithm(object):
+class GLMAlgorithm(abc.ABC):
   """Base class for Generalized Linear Models (GLM) bandit algorithms.
 
   In this setting each arm is represented by a feature vector x and there exists
@@ -46,7 +41,8 @@ class GLMAlgorithm(object):
     _rng: An instance of random.RandomState for random number generation
   """
 
-  def __init__(self, dim, sigma0=1., optimism_scaling=1.):
+  def __init__(self, dim, sigma0=1., optimism_scaling=1., seed=0):
+    self._rng = np.random.default_rng(seed)
     self._rewards = np.array([])  # stores all rewards
     self._arms = np.ndarray([0, dim])  # stores arm differences
     self._dim = dim
@@ -127,8 +123,8 @@ class UCB_GLM(GLMAlgorithm):  # pylint: disable=invalid-name
   by Li et al. (2017).
   """
 
-  def __init__(self, dim, horizon, sigma0=1., optimism_scaling=1.):
-    super(UCB_GLM, self).__init__(dim, sigma0, optimism_scaling)
+  def __init__(self, dim, horizon, sigma0=1., optimism_scaling=1., seed=0):
+    super(UCB_GLM, self).__init__(dim, sigma0, optimism_scaling, seed)
     # Set confidence interval scaling, by
     # Theorem 2 in Li (2017)
     # Provably Optimal Algorithms for Generalized Linear Contextual Bandits
@@ -158,7 +154,7 @@ class UCB_GLM(GLMAlgorithm):  # pylint: disable=invalid-name
     w, _ = self.solve_logistic_bandit()
     # Compute UCB
     mu = np.matmul(arm_matrix, w) + self._ci_scaling * ucbs
-    arm = np.random.choice(np.flatnonzero(mu == mu.max()))
+    arm = self._rng.choice(np.flatnonzero(mu == mu.max()))
 
     return arms[arm], arm, mu
 
@@ -186,10 +182,10 @@ class GLM_TS(GLMAlgorithm):  # pylint: disable=invalid-name
     gram_inv = np.square(self._optimism_scaling) * np.linalg.inv(gram)
 
     # Posterior sampling
-    w_tilde = np.random.multivariate_normal(w, gram_inv)
+    w_tilde = self._rng.multivariate_normal(w, gram_inv)
     mu = np.matmul(arm_matrix, w_tilde)
     # Argmax breaking ties randomly
-    arm = np.random.choice(np.flatnonzero(mu == mu.max()))
+    arm = self._rng.choice(np.flatnonzero(mu == mu.max()))
 
     return arms[arm], arm, mu
 

@@ -1,73 +1,27 @@
-# coding=utf-8
-# Copyright 2019 The RecSim Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""Refactored RecSim environment (gym→gymnasium, Python3 ABC cleanup).
-
-This version removes six, Python2 metaclass patterns, and
-keeps full compatibility with the user/document models.
-"""
-
+# Copyright 2019 The RecSim Authors. Licensed under the Apache License, Version 2.0.
+"""Raw single- and multi-user simulators, independent of the Gymnasium adapter."""
 import abc
-import collections
-import itertools
-
+from collections import OrderedDict
+from copy import deepcopy
+import numpy as np
 from recsim import document
+from recsim.config import validate_environment_config
 
 
 class AbstractEnvironment(abc.ABC):
-    """Abstract class representing the recommender system environment.
-
-    The agent interacts with this environment, receiving observations of
-    user state and candidate documents, and produces an action (slate).
-    """
-
-    def __init__(
-        self,
-        user_model,
-        document_sampler,
-        num_candidates,
-        slate_size,
-        resample_documents=True,
-    ):
+    def __init__(self, user_model, document_sampler, num_candidates, slate_size,
+                 resample_documents=True):
+        validate_environment_config(dict(num_candidates=num_candidates, slate_size=slate_size))
         self._user_model = user_model
         self._document_sampler = document_sampler
-        self._slate_size = slate_size
+        self._seed = document_sampler._seed
         self._num_candidates = num_candidates
+        self._slate_size = slate_size
         self._resample_documents = resample_documents
-
-        # Create a candidate set.
+        if isinstance(user_model, list) and not user_model:
+            raise ValueError('At least one user is required')
+        self._ready = False
         self._do_resample_documents()
-
-        if slate_size > num_candidates:
-            raise ValueError(
-                f"Slate size {slate_size} cannot exceed number of candidates {num_candidates}"
-            )
-
-    def _do_resample_documents(self):
-        """Resample candidate documents (content creator stub)."""
-        self._candidate_set = document.CandidateSet()
-        for _ in range(self._num_candidates):
-            self._candidate_set.add_document(self._document_sampler.sample_document())
-
-    @abc.abstractmethod
-    def reset(self):
-        """Resets environment → returns (user_obs, doc_obs)."""
-
-    @abc.abstractmethod
-    def reset_sampler(self):
-        """Resets document/user samplers."""
 
     @property
     def num_candidates(self):
@@ -85,153 +39,95 @@ class AbstractEnvironment(abc.ABC):
     def user_model(self):
         return self._user_model
 
-    @abc.abstractmethod
-    def step(self, slate):
-        """Step environment with action `slate`.
+    @property
+    def user_models(self):
+        return self.user_model if isinstance(self, MultiUserEnvironment) else [self.user_model]
 
-        Returns:
-            user_obs,
-            doc_obs,
-            responses,
-            done
-        """
+    def _do_resample_documents(self):
+        self._candidate_set = document.CandidateSet()
+        for _ in range(self.num_candidates):
+            self._candidate_set.add_document(self._document_sampler.sample_document())
+        if self._candidate_set.size() != self.num_candidates:
+            raise ValueError('Document sampler produced duplicate candidate IDs')
+        self._current_documents = OrderedDict(self._candidate_set.create_observation())
 
-
-# -------------------------------------------------------------------
-# Single-user environment
-# -------------------------------------------------------------------
-class SingleUserEnvironment(AbstractEnvironment):
-    """Environment for a single user session."""
+    def reset_sampler(self, seed=None):
+        if seed is not None:
+            self._seed = seed
+        seed = getattr(self, '_seed', self._document_sampler._seed)
+        streams = np.random.SeedSequence(seed).spawn(1 + len(self.user_models))
+        self._document_sampler.reset_sampler(int(streams[0].generate_state(1)[0]))
+        for model, stream in zip(self.user_models, streams[1:]):
+            model.reset_sampler(int(stream.generate_state(1)[0]))
+        # Even a fixed candidate pool must replay when explicitly reseeded.
+        self._do_resample_documents()
+        self._ready = False
 
     def reset(self):
-        """Reset → (user_obs, doc_obs)"""
-        self._user_model.reset()
-        user_obs = self._user_model.create_observation()
-
+        for model in self.user_models:
+            model.reset()
         if self._resample_documents:
             self._do_resample_documents()
+        self._ready = True
+        users = [deepcopy(m.create_observation()) for m in self.user_models]
+        return (users if isinstance(self, MultiUserEnvironment) else users[0],
+                deepcopy(self._current_documents))
 
-        self._current_documents = collections.OrderedDict(
-            self._candidate_set.create_observation()
-        )
-        return user_obs, self._current_documents
+    def _validate_slate(self, slate):
+        action = np.asarray(slate)
+        if action.shape != (self.slate_size,) or action.dtype.kind not in 'iu':
+            raise ValueError(f'Expected {self.slate_size} integer candidate indices')
+        if np.any(action < 0) or np.any(action >= self.num_candidates):
+            raise ValueError('Candidate index is out of range')
+        return action
 
-    def reset_sampler(self):
-        self._document_sampler.reset_sampler()
-        self._user_model.reset_sampler()
+    def _step(self, slates):
+        if not self._ready:
+            raise RuntimeError('Call reset() before step() or after episode termination')
+        if len(slates) != len(self.user_models):
+            raise ValueError('Expected one slate per user')
+        # Validate every action before mutating any user.
+        slates = [self._validate_slate(s) for s in slates]
+        ids = list(self._current_documents)
+        all_responses, active_docs, active_responses = [], [], []
+        for model, slate in zip(self.user_models, slates):
+            docs = self.candidate_set.get_documents([ids[i] for i in slate])
+            if model.is_terminal():
+                responses = []
+            else:
+                responses = model.simulate_response(docs)
+                if len(responses) != len(docs):
+                    raise ValueError('A user model must return one response per document')
+                model.update_state(docs, responses)
+                active_docs.extend(docs)
+                active_responses.extend(responses)
+            all_responses.append(responses)
+        self._document_sampler.update_state(active_docs, active_responses)
+        users = [deepcopy(m.create_observation()) for m in self.user_models]
+        done = all(m.is_terminal() for m in self.user_models)
+        self._ready = not done
+        if self._resample_documents:
+            self._do_resample_documents()
+        return users, deepcopy(self._current_documents), all_responses, bool(done)
 
+    @abc.abstractmethod
     def step(self, slate):
-        """Executes an action and returns results."""
-
-        if len(slate) > self._slate_size:
-            raise ValueError(
-                f"Slate size too large: expected {self._slate_size}, got {len(slate)}"
-            )
-
-        # map indices to document objects
-        doc_ids = list(self._current_documents.keys())
-        mapped_slate = [doc_ids[x] for x in slate]
-        documents = self._candidate_set.get_documents(mapped_slate)
-
-        # simulate user response
-        responses = self._user_model.simulate_response(documents)
-
-        # update user state
-        self._user_model.update_state(documents, responses)
-
-        # update document states
-        self._document_sampler.update_state(documents, responses)
-
-        # next state
-        user_obs = self._user_model.create_observation()
-        done = self._user_model.is_terminal()
-
-        if self._resample_documents:
-            self._do_resample_documents()
-
-        self._current_documents = collections.OrderedDict(
-            self._candidate_set.create_observation()
-        )
-
-        return user_obs, self._current_documents, responses, done
+        """Return raw user/doc/response/done values."""
 
 
-Environment = SingleUserEnvironment  # backward compatibility alias
+class SingleUserEnvironment(AbstractEnvironment):
+    def step(self, slate):
+        users, docs, responses, done = self._step([slate])
+        return users[0], docs, responses[0], done
 
 
-# -------------------------------------------------------------------
-# Multi-user environment
-# -------------------------------------------------------------------
+Environment = SingleUserEnvironment
+
+
 class MultiUserEnvironment(AbstractEnvironment):
-    """Environment that simulates multiple users simultaneously."""
-
     @property
     def num_users(self):
         return len(self.user_model)
 
-    def reset(self):
-        for um in self.user_model:
-            um.reset()
-
-        user_obs = [um.create_observation() for um in self.user_model]
-
-        if self._resample_documents:
-            self._do_resample_documents()
-
-        self._current_documents = collections.OrderedDict(
-            self._candidate_set.create_observation()
-        )
-
-        return user_obs, self._current_documents
-
-    def reset_sampler(self):
-        self._document_sampler.reset_sampler()
-        for um in self.user_model:
-            um.reset_sampler()
-
     def step(self, slates):
-        if len(slates) != self.num_users:
-            raise ValueError(
-                f"Expected {self.num_users} slates, got {len(slates)}"
-            )
-
-        all_user_obs, all_documents, all_responses = [], [], []
-
-        for um, slate in zip(self.user_model, slates):
-            if len(slate) > self._slate_size:
-                raise ValueError(
-                    f"Slate too large: expected {self._slate_size}, got {len(slate)}"
-                )
-
-            doc_ids = list(self._current_documents.keys())
-            mapped_slate = [doc_ids[x] for x in slate]
-            documents = self._candidate_set.get_documents(mapped_slate)
-
-            if um.is_terminal():
-                responses = []
-            else:
-                responses = um.simulate_response(documents)
-                um.update_state(documents, responses)
-
-            all_user_obs.append(um.create_observation())
-            all_documents.append(documents)
-            all_responses.append(responses)
-
-        # flatten for document sampler
-        def flatten(x):
-            return list(itertools.chain(*x))
-
-        self._document_sampler.update_state(
-            flatten(all_documents), flatten(all_responses)
-        )
-
-        done = all(um.is_terminal() for um in self.user_model)
-
-        if self._resample_documents:
-            self._do_resample_documents()
-
-        self._current_documents = collections.OrderedDict(
-            self._candidate_set.create_observation()
-        )
-
-        return all_user_obs, self._current_documents, all_responses, done
+        return self._step(slates)

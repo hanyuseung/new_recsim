@@ -56,8 +56,11 @@ class AbstractDocumentSampler(abc.ABC):
         self._seed = seed
         self.reset_sampler()
 
-    def reset_sampler(self):
-        self._rng = np.random.RandomState(self._seed)
+    def reset_sampler(self, seed=None):
+        if seed is not None:
+            self._seed = seed
+        self._rng = np.random.default_rng(self._seed)
+        self._doc_count = 0
 
     @abc.abstractmethod
     def sample_document(self):
@@ -78,7 +81,7 @@ class AbstractDocumentSampler(abc.ABC):
 class AbstractDocument(abc.ABC):
     """Base class representing a document with observable features."""
 
-    NUM_FEATURES = None
+    NUM_FEATURES: int | None = None
 
     def __init__(self, doc_id):
         self._doc_id = doc_id  # unique integer id

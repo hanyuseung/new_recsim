@@ -15,14 +15,14 @@
 # limitations under the License.
 """Tests for recsim.agents.tabular_q_agent."""
 
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 from recsim.agents import tabular_q_agent
 from recsim.testing import test_environment as te
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class TabularQAgentTest(tf.test.TestCase):
+class TabularQAgentTest(test_case.TestCase):
 
   def init_agent_and_env(self,
                          slate_size=1,
@@ -51,12 +51,12 @@ class TabularQAgentTest(tf.test.TestCase):
 
   def test_step(self):
     te_sim, agent = self.init_agent_and_env()
-    observation0 = te_sim.reset()
+    observation0, _ = te_sim.reset()
     slate1 = agent.step(0, observation0)
     selected_doc0 = list(observation0['doc'].values())[slate1[0]]
     # Environment always starts at state 0.
     self.assertEqual(agent._previous_state_action_index, (selected_doc0, 0))
-    observation1, reward1, _, _ = te_sim.step(slate1)
+    observation1, reward1, _, _, _ = te_sim.step(slate1)
     slate2 = agent.step(reward1, observation1)
     selected_doc1 = list(observation1['doc'].values())[slate2[0]]
     observed_state = observation1['user']
@@ -68,10 +68,10 @@ class TabularQAgentTest(tf.test.TestCase):
 
   def test_myopic_value_estimation(self):
     te_sim, agent = self.init_agent_and_env()
-    observation0 = te_sim.reset()
+    observation0, _ = te_sim.reset()
     slate = agent.step(0, observation0)
     for _ in range(1000):
-      observation, reward, _, _ = te_sim.step(slate)
+      observation, reward, _, _, _ = te_sim.step(slate)
       slate = agent.step(reward, observation)
     for state in range(6):
       for action in range(4):
@@ -80,11 +80,11 @@ class TabularQAgentTest(tf.test.TestCase):
 
   def test_gamma05_value_estimation(self):
     te_sim, agent = self.init_agent_and_env(gamma=0.5)
-    observation = te_sim.reset()
+    observation, _ = te_sim.reset()
     reward = 0
     for i in range(100, 50100):
       slate = agent.step(reward, observation)
-      observation, reward, _, _ = te_sim.step(slate)
+      observation, reward, _, _, _ = te_sim.step(slate)
       agent._learning_rate = 100.0 / float(i)
     for state in range(6):
       for action in range(4):
@@ -150,7 +150,7 @@ class TabularQAgentTest(tf.test.TestCase):
 
   def test_slate_enumeration(self):
     te_sim, agent = self.init_agent_and_env(slate_size=2, num_candidates=4)
-    observation0 = te_sim.reset()
+    observation0, _ = te_sim.reset()
     non_ordinal_slates = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
     enumerated_slates = [
         slate for slate, _ in agent._enumerate_slates(observation0['doc'])
@@ -170,9 +170,9 @@ class TabularQAgentTest(tf.test.TestCase):
     te_sim, agent = self.init_agent_and_env(
         slate_size=1, num_candidates=4, policy='min_count')
     # Make a few steps to populate counts and Q-table.
-    observation0 = te_sim.reset()
+    observation0, _ = te_sim.reset()
     slate1 = agent.step(0, observation0)
-    observation1, reward1, _, _ = te_sim.step(slate1)
+    observation1, reward1, _, _, _ = te_sim.step(slate1)
     agent.step(reward1, observation1)
     bundle_dict = {
         'q_value_table': agent._q_value_table,
@@ -186,4 +186,4 @@ class TabularQAgentTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

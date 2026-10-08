@@ -14,11 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Helper classe to record fixed length history of observations."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from gym import spaces
+from gymnasium import spaces
+from copy import deepcopy
+from recsim.spaces import zeros
 
 from recsim.agents.layers import sufficient_statistics
 
@@ -61,6 +60,8 @@ class FixedLengthHistoryLayer(sufficient_statistics.SufficientStatisticsLayer):
       **kwargs: arguments to pass to the downstream agent at construction time.
     """
 
+    if not isinstance(history_length, int) or history_length < 1:
+      raise ValueError('history_length must be positive')
     self._history_length = history_length
     self._features = []
     if remember_user:
@@ -72,6 +73,7 @@ class FixedLengthHistoryLayer(sufficient_statistics.SufficientStatisticsLayer):
     observation_space_to_remember = spaces.Dict({
         feature: observation_space[feature] for feature in self._features
     })
+    self._remember_space = observation_space_to_remember
     suf_stat_space = spaces.Tuple([
         observation_space_to_remember,
     ] * history_length)
@@ -85,12 +87,10 @@ class FixedLengthHistoryLayer(sufficient_statistics.SufficientStatisticsLayer):
   def _update(self, observation):
     """Updates user impression/click count given user response on each item."""
     if self._sufficient_statistics is None:
-      self._sufficient_statistics = self._history_length * [
-          None,
-      ]
+      self._sufficient_statistics = [zeros(self._remember_space) for _ in range(self._history_length)]
 
     observation_to_remember = {
-        feature: observation[feature] for feature in self._features
+        feature: deepcopy(observation[feature]) if observation[feature] is not None else zeros(self._remember_space[feature]) for feature in self._features
     }
     self._sufficient_statistics = [
         observation_to_remember,

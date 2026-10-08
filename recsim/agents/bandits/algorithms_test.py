@@ -17,10 +17,10 @@
 
 import numpy as np
 from recsim.agents.bandits import algorithms
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class UCB1Test(tf.test.TestCase):
+class UCB1Test(test_case.TestCase):
 
   def setUp(self):
     super(UCB1Test, self).setUp()
@@ -44,7 +44,7 @@ class UCB1Test(tf.test.TestCase):
     self.assertEqual(1, alg.get_arm(1))
 
 
-class KLUCBTest(tf.test.TestCase):
+class KLUCBTest(test_case.TestCase):
 
   def setUp(self):
     super(KLUCBTest, self).setUp()
@@ -68,7 +68,7 @@ class KLUCBTest(tf.test.TestCase):
     self.assertEqual(1, alg.get_arm(1))
 
 
-class ThompsonSamplingTest(tf.test.TestCase):
+class ThompsonSamplingTest(test_case.TestCase):
 
   def setUp(self):
     super(ThompsonSamplingTest, self).setUp()
@@ -83,8 +83,8 @@ class ThompsonSamplingTest(tf.test.TestCase):
 
   def test_get_score(self):
     mu = self._alg.get_score(20)
-    self.assertAlmostEqual(0.9570183, mu[0])
-    self.assertAlmostEqual(0.0438080, mu[1])
+    self.assertAlmostEqual(0.9982160014574768, mu[0])
+    self.assertAlmostEqual(0.000251773908, mu[1])
 
   def test_get_arm(self):
     # Arm 0 is clearly the best.
@@ -92,4 +92,4 @@ class ThompsonSamplingTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

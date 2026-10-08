@@ -101,13 +101,10 @@ Known Q and value functions for:
   V[4] = 18.6036, V[5] = 20.6706
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from absl import flags
-import gin.tf
-from gym import spaces
+import gin
+from gymnasium import spaces
 import numpy as np
 
 from recsim import document
@@ -190,7 +187,7 @@ class SimpleSequentialUserModel(user.AbstractUserModel):
 
   def update_state(self, slate_documents, responses):
     doc = slate_documents[0]
-    next_state = np.random.choice(
+    next_state = self._rng.choice(
         6, p=self._transition_matrix[doc.action_id, self._user_state.state])
     self._user_state = SimpleSequentialUserState(next_state)
     return
@@ -261,7 +258,7 @@ class SimpleSequentialUserSampler(user.AbstractUserSampler):
                                                       **kwargs)
 
   def sample_user(self):
-    starting_state = np.random.choice(6, p=self._probs)
+    starting_state = self._rng.choice(6, p=self._probs)
     return SimpleSequentialUserState(starting_state)
 
 

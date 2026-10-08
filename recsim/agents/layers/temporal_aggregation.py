@@ -14,12 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Temporally aggregated reinforcement learning agent."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 
-from gym import spaces
+from gymnasium import spaces
+from copy import deepcopy
 import numpy as np
 
 from recsim import agent
@@ -81,6 +79,8 @@ class TemporalAggregationLayer(agent.AbstractHierarchicalAgentLayer):
     """
     super(TemporalAggregationLayer, self).__init__(action_space,
                                                    base_agent_ctor)
+    if not isinstance(aggregation_period, int) or aggregation_period < 1:
+      raise ValueError('aggregation_period must be positive')
     self._step_count = 0
     self._observation_space = observation_space
     self._aggregation_period = aggregation_period
@@ -144,7 +144,7 @@ class TemporalAggregationLayer(agent.AbstractHierarchicalAgentLayer):
       ]
       gym_observation0 = np.array(gym_observations[0])
       for gym_observation in gym_observations[1:]:
-        gym_observation = np.array(gym_observations)
+        gym_observation = np.array(gym_observation)
         if not np.allclose(
             gym_observation0, gym_observation, atol=abs_tolerance):
           all_equal = [
@@ -161,6 +161,7 @@ class TemporalAggregationLayer(agent.AbstractHierarchicalAgentLayer):
     return list(all_equal)
 
   def _preprocess_reward_observation(self, reward, observation):
+    observation = deepcopy(observation)
     # Aggregate reward and adjust discount.
     if self._switching_cost > 0.0:
       if self._last_slate is None:
@@ -176,6 +177,7 @@ class TemporalAggregationLayer(agent.AbstractHierarchicalAgentLayer):
       if not self._slate_comparator(self._last_slate,
                                     self._previous_last_slate):
         reward -= self._switching_cost
+      self._previous_last_slate = self._last_slate
     self._reward_accumulator += self._gamma_accumulator * reward
     self._gamma_accumulator *= self._gamma
     return self._reward_accumulator, observation
@@ -210,8 +212,10 @@ class TemporalAggregationLayer(agent.AbstractHierarchicalAgentLayer):
         reward, observation)
     # Is this a decision period?
     if not self._step_count % self._aggregation_period:
-      new_slate_index = self._base_agents[0].step(reward,
-                                                  observation)
+      if getattr(self, '_starting', False):
+        new_slate_index = self._base_agents[0].begin_episode(observation)
+      else:
+        new_slate_index = self._base_agents[0].step(reward, observation)
       new_slate_features = [
           tuple(observation['doc'].values())[i] for i in new_slate_index
       ]
@@ -227,7 +231,7 @@ class TemporalAggregationLayer(agent.AbstractHierarchicalAgentLayer):
       slate = [None] * self._slate_size
       for i, doc_features in enumerate(observation['doc'].values()):
         for missing_doc_position, missing_doc in enumerate(documents_to_find):
-          if not self._doc_comparator(doc_features,
+          if self._doc_comparator(doc_features,
                                       self._last_slate[missing_doc]):
             slate[missing_doc] = i
             documents_to_find.pop(missing_doc_position)
@@ -238,4 +242,35 @@ class TemporalAggregationLayer(agent.AbstractHierarchicalAgentLayer):
         raise RuntimeError(('Temporal aggregation could not recreate previous '
                             'slate because items became unavailable.'))
 
+    self._step_count += 1
     return slate
+
+  def begin_episode(self, observation=None):
+    self._step_count = 0
+    self._last_slate = self._previous_last_slate = None
+    self._reward_accumulator = 0.0
+    self._gamma_accumulator = 1.0
+    self._starting = True
+    try:
+      action = self.step(0.0, observation)
+      self._previous_last_slate = self._last_slate
+      return action
+    finally:
+      self._starting = False
+
+  def end_episode(self, reward, observation, *, terminated=True, truncated=False):
+    reward, observation = self._preprocess_reward_observation(reward, observation)
+    base = self._base_agents[0]
+    elapsed = (self._step_count - 1) % self._aggregation_period + 1
+    discounts = {name: getattr(base, name) for name in ('gamma', '_gamma') if hasattr(base, name)}
+    try:
+      for name in discounts:
+        setattr(base, name, self._gamma ** elapsed)
+      base.end_episode(reward, observation, terminated=terminated, truncated=truncated)
+    finally:
+      for name, value in discounts.items():
+        setattr(base, name, value)
+    self._step_count = 0
+    self._last_slate = self._previous_last_slate = None
+    self._reward_accumulator = 0.0
+    self._gamma_accumulator = 1.0

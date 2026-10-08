@@ -14,7 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Module importing all layered agents."""
-from recsim.agents.layers import cluster_click_statistics
-from recsim.agents.layers import fixed_length_history
-from recsim.agents.layers import sufficient_statistics
-from recsim.agents.layers import temporal_aggregation

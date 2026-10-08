@@ -15,9 +15,6 @@
 # limitations under the License.
 """Utility functions for RecSim environment."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 
 def aggregate_video_cluster_metrics(responses, metrics, info=None):
@@ -51,6 +48,8 @@ def aggregate_video_cluster_metrics(responses, metrics, info=None):
 
 def write_video_cluster_metrics(metrics, add_summary_fn):
   """Writes average video cluster metrics using add_summary_fn."""
+  if not metrics['impression']:
+    return
   add_summary_fn('CTR', metrics['click'] / metrics['impression'])
   if metrics['click'] > 0:
     add_summary_fn('AverageQuality', metrics['quality'] / metrics['click'])

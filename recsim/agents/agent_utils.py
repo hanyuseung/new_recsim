@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Convenience primitives relating to the implementation of agents."""
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 
 
@@ -74,7 +74,7 @@ class GymSpaceWalker(object):
     return flattened_apply
 
 
-def epsilon_greedy_exploration(state_action_iterator, q_function, epsilon):
+def epsilon_greedy_exploration(state_action_iterator, q_function, epsilon, rng=None):
   """Epsilon greedy exploration.
 
   Either picks a slate uniformly at random with probability epsilon, or returns
@@ -87,7 +87,8 @@ def epsilon_greedy_exploration(state_action_iterator, q_function, epsilon):
     slate: the picked slate.
     sa_index: the index of the picked slate in the Q-value table.
   """
-  max_q_next = -np.Inf
+  rng = np.random.default_rng() if rng is None else rng
+  max_q_next = -np.inf
   max_state_action_index = None
   max_slate = []
   random_state_action_index = None
@@ -102,10 +103,10 @@ def epsilon_greedy_exploration(state_action_iterator, q_function, epsilon):
       max_slate = slate
     # Pick a random action by reservoir sampling in order to avoid materializing
     # all possible slates.
-    if slate_count == 1 or np.random.random() < 1.0 / (1.0 * slate_count):
+    if slate_count == 1 or rng.random() < 1.0 / (1.0 * slate_count):
       random_state_action_index = state_action_index
       random_slate = slate
-  if np.random.random() <= epsilon:
+  if rng.random() <= epsilon:
     slate = random_slate
     sa_index = random_state_action_index
   else:
@@ -126,7 +127,7 @@ def min_count_exploration(state_action_iterator, counts_function):
     slate: the picked slate.
     sa_index: the index of the picked slate in the counts table.
   """
-  min_sa_count = np.Inf
+  min_sa_count = np.inf
   min_sa_count_slate = []
   min_sa_count_index = None
   for slate, state_action_index in state_action_iterator:

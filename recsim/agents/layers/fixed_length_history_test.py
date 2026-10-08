@@ -15,18 +15,16 @@
 # limitations under the License.
 """Tests for recsim.agents.layers.fixed_length_history."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from gym import spaces
-import mock
+from gymnasium import spaces
+from unittest import mock
+from recsim.spaces import zeros
 from recsim.agents import cluster_bandit_agent
 from recsim.agents.layers import fixed_length_history
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class FixedLengthHistoryTest(tf.test.TestCase):
+class FixedLengthHistoryTest(test_case.TestCase):
 
   def setUp(self):
     self.history_length = 3
@@ -87,9 +85,9 @@ class FixedLengthHistoryTest(tf.test.TestCase):
     self.assertIsNone(self.history._sufficient_statistics)
     self.history._update(observation)
     self.assertEqual(self.history._sufficient_statistics,
-                     [observation, None, None])
+                     [observation, zeros(self.test_observation_space), zeros(self.test_observation_space)])
     self.assertEqual(self.history._create_observation(),
-                     (observation, None, None))
+                     (observation, zeros(self.test_observation_space), zeros(self.test_observation_space)))
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

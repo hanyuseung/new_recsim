@@ -15,20 +15,22 @@
 # limitations under the License.
 """Tests for recsim.agents.random_agent."""
 
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 from recsim import choice_model
 from recsim.agents import random_agent
 from recsim.environments import interest_evolution as iev
 from recsim.environments import interest_exploration as ie
 from recsim.simulator import environment
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class RandomAgentTest(tf.test.TestCase):
+class RandomAgentTest(test_case.TestCase):
 
   def setUp(self):
     super(RandomAgentTest, self).setUp()
+    self.addCleanup(setattr, iev.IEvUserState, "NUM_FEATURES", iev.IEvUserState.NUM_FEATURES)
+    self.addCleanup(setattr, iev.IEvVideo, "NUM_FEATURES", iev.IEvVideo.NUM_FEATURES)
     # The maximum length of videos in response
     iev.IEvResponse.MAX_VIDEO_LENGTH = 100.0
 
@@ -50,7 +52,7 @@ class RandomAgentTest(tf.test.TestCase):
 
     # Create a candidate_set with 5 items
     num_candidates = 5
-    document_sampler = iev.IEvVideoSampler()
+    document_sampler = iev.IEvVideoSampler(num_candidates=num_candidates)
     ievsim = environment.Environment(user_model, document_sampler,
                                      num_candidates, slate_size)
 
@@ -61,7 +63,7 @@ class RandomAgentTest(tf.test.TestCase):
     # This agent doesn't use the previous user response
     observation, documents = ievsim.reset()
     slate = agent.step(1, dict(user=observation, doc=documents))
-    self.assertAllEqual(slate, [2, 0])
+    self.assertAllEqual(slate, [2, 4])  # Generator(PCG64), seed 0
 
   def test_slate_indices_and_length(self):
     # Initialize agent
@@ -76,7 +78,7 @@ class RandomAgentTest(tf.test.TestCase):
     agent = random_agent.RandomAgent(action_space, random_seed=0)
 
     # Create a set of documents
-    document_sampler = iev.IEvVideoSampler()
+    document_sampler = iev.IEvVideoSampler(num_candidates=num_candidates)
     ievenv = environment.Environment(user_model, document_sampler,
                                      num_candidates, slate_size)
 
@@ -123,4 +125,4 @@ class RandomAgentTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

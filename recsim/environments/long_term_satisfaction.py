@@ -27,22 +27,19 @@ latent variable. It has to be inferred through the increase/decrease in
 engagement.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from absl import flags
 from absl import logging
-import gin.torch
+import gin
 from gymnasium import spaces
 import numpy as np
-from recsim import document # type: ignore
-from recsim import user # type: ignore
-from recsim.simulator import environment # type: ignore
-from recsim.simulator import recsim_gym # type: ignore
+from recsim import document
+from recsim import user
+from recsim.config import validate_environment_config
+from recsim.simulator import environment
+from recsim.simulator import recsim_gym
 
 FLAGS = flags.FLAGS
-print(1)
 
 class LTSUserModel(user.AbstractUserModel):
   """Class to model a user with long-term satisfaction dynamics.
@@ -109,7 +106,7 @@ class LTSUserModel(user.AbstractUserModel):
 
     for doc, response in zip(slate_documents, responses):
       if response.clicked:
-        innovation = np.random.normal(scale=self._user_state.innovation_stddev)
+        innovation = self._rng.normal(scale=self._user_state.innovation_stddev)
         net_positive_exposure = (self._user_state.memory_discount
                                  * self._user_state.net_positive_exposure
                                  - 2.0 * (doc.clickbait_score - 0.5)
@@ -156,7 +153,7 @@ class LTSUserModel(user.AbstractUserModel):
     engagement_scale = (doc.clickbait_score * self._user_state.choc_stddev
                         + ((1 - doc.clickbait_score)
                            * self._user_state.kale_stddev))
-    log_engagement = np.random.normal(loc=engagement_loc,
+    log_engagement = self._rng.normal(loc=engagement_loc,
                                       scale=engagement_scale)
     response.engagement = np.exp(log_engagement)
 
@@ -204,7 +201,7 @@ class LTSUserState(user.AbstractUserState):
 
   def create_observation(self):
     """User's state is not observable."""
-    return np.array([])
+    return np.array([], dtype=np.float32)
 
   # No choice model.
   def score_document(self, doc_obs):
@@ -245,7 +242,7 @@ class LTSStaticUserSampler(user.AbstractUserSampler):
     super(LTSStaticUserSampler, self).__init__(user_ctor, **kwargs)
 
   def sample_user(self):
-    starting_npe = ((self._rng.random_sample() - .5) *
+    starting_npe = ((self._rng.random() - .5) *
                     (1 / (1.0 - self._state_parameters['memory_discount'])))
     self._state_parameters['net_positive_exposure'] = starting_npe
     return self._user_ctor(**self._state_parameters)
@@ -275,7 +272,7 @@ class LTSResponse(user.AbstractResponse):
     self.engagement = engagement
 
   def __str__(self):
-    return '[' + self.engagement + ']'
+    return f'[{self.engagement}]'
 
   def __repr__(self):
     return self.__str__()
@@ -317,7 +314,7 @@ class LTSDocument(document.AbstractDocument):
     super(LTSDocument, self).__init__(doc_id)
 
   def create_observation(self):
-    return np.array([self.clickbait_score])
+    return np.array([self.clickbait_score], dtype=np.float32)
 
   @staticmethod
   def observation_space():
@@ -339,7 +336,7 @@ class LTSDocumentSampler(document.AbstractDocumentSampler):
   def sample_document(self):
     doc_features = {}
     doc_features['doc_id'] = self._doc_count
-    doc_features['clickbait_score'] = self._rng.random_sample()
+    doc_features['clickbait_score'] = self._rng.random()
     self._doc_count += 1
     return self._doc_ctor(**doc_features)
 
@@ -361,14 +358,15 @@ def clicked_engagement_reward(responses):
 
 
 def create_environment(env_config):
+  env_config = validate_environment_config(env_config)
   """Creates a long-term satisfaction environment."""
 
   user_model = LTSUserModel(
       env_config['slate_size'],
       user_state_ctor=LTSUserState,
-      response_model_ctor=LTSResponse)
+      response_model_ctor=LTSResponse, seed=env_config['seed'])
 
-  document_sampler = LTSDocumentSampler()
+  document_sampler = LTSDocumentSampler(seed=env_config['seed'])
 
   ltsenv = environment.Environment(
       user_model,
@@ -377,4 +375,4 @@ def create_environment(env_config):
       env_config['slate_size'],
       resample_documents=env_config['resample_documents'])
 
-  return recsim_gym.RecSimGymEnv(ltsenv, clicked_engagement_reward)
+  return recsim_gym.RecSimGymEnv(ltsenv, clicked_engagement_reward, seed=env_config["seed"], max_episode_steps=env_config.get("max_episode_steps"))

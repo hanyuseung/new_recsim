@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Agent that picks items with highest pCTR given the true user choice model."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 
 from absl import logging

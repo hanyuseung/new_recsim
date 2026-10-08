@@ -1,7 +1,6 @@
 # test_simul.py
 
 from simulate_api import simulate_users_csv
-from simulate_api import simulate_users_json
 
 if __name__ == "__main__":
     # simulate_users_json(

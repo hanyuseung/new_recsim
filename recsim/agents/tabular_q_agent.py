@@ -14,14 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """A Tabular Q-learning implementation."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import itertools
 
 from absl import logging
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 
 from recsim import agent
@@ -64,6 +61,7 @@ class TabularQAgent(agent.AbstractEpisodicRecommenderAgent):
                learning_rate=0.1,
                gamma=0.99,
                ordinal_slates=False,
+               random_seed=0,
                **kwargs):
     """TabularQAgent init.
 
@@ -99,6 +97,7 @@ class TabularQAgent(agent.AbstractEpisodicRecommenderAgent):
     """
     self._kwargs = kwargs
     super(TabularQAgent, self).__init__(action_space)
+    self._rng = np.random.default_rng(random_seed)
     # hard params
     self._gamma = gamma
     self._eval_mode = eval_mode
@@ -133,7 +132,7 @@ class TabularQAgent(agent.AbstractEpisodicRecommenderAgent):
         'epsilon_greedy':
             lambda observation: agent_utils.epsilon_greedy_exploration(  # pylint: disable=g-long-lambda
                 self._enumerate_state_action_indices(observation), self.
-                _q_value_table, self._exploration_temperature),
+                _q_value_table, self._exploration_temperature, rng=self._rng),
         'min_count':
             lambda observation: agent_utils.min_count_exploration(  # pylint: disable=g-long-lambda
                 self._enumerate_state_action_indices(observation),
@@ -144,7 +143,6 @@ class TabularQAgent(agent.AbstractEpisodicRecommenderAgent):
 
     index = []
     for gym_observation in gym_observations:
-      gym_observation = gym_observations[0]
       if isinstance(gym_space, spaces.box.Box):
         gym_observation = np.array(gym_observation)
         dis_obs = np.digitize(gym_observation.flatten(),
@@ -210,7 +208,7 @@ class TabularQAgent(agent.AbstractEpisodicRecommenderAgent):
         key=lambda sa: self._q_value_table.get(sa[1], 0))
     max_q_next = self._q_value_table.get(max_q_state_action[1], 0)
     # Update the Q-table.
-    if self._previous_state_action_index is not None:
+    if not self._eval_mode and self._previous_state_action_index is not None:
       old_q = self._q_value_table.get(self._previous_state_action_index, 0.)
       self._q_value_table[self._previous_state_action_index] = (
           self._learning_rate * (reward + self._gamma * max_q_next) +
@@ -228,18 +226,21 @@ class TabularQAgent(agent.AbstractEpisodicRecommenderAgent):
       slate, state_action_index = max_q_state_action
     return slate
 
-  def end_episode(self, reward, observation):
-    self._exploration_temperature *= self._base_exploration_temperature
-    self._exploration_functions = {
-        'epsilon_greedy':
-            lambda observation: agent_utils.epsilon_greedy_exploration(  # pylint: disable=g-long-lambda
-                self._enumerate_state_action_indices(observation), self.
-                _q_value_table, self._exploration_temperature),
-        'min_count':
-            lambda observation: agent_utils.min_count_exploration(  # pylint: disable=g-long-lambda
-                self._enumerate_state_action_indices(observation),
-                self._state_action_counts)
-    }
+  def begin_episode(self, observation=None):
+    self._previous_state_action_index = None
+    return super().begin_episode(observation)
+
+  def end_episode(self, reward, observation, *, terminated=True, truncated=False):
+    if not self._eval_mode and self._previous_state_action_index is not None:
+      continuation = 0.0
+      if not terminated:
+        continuation = max(self._q_value_table.get(i, 0.)
+                           for _, i in self._enumerate_state_action_indices(observation))
+      index = self._previous_state_action_index
+      old = self._q_value_table.get(index, 0.)
+      self._q_value_table[index] = old + self._learning_rate * (reward + self._gamma * continuation - old)
+      self._state_action_counts[index] = self._state_action_counts.get(index, 0) + 1
+      self._exploration_temperature *= self._base_exploration_temperature
     self._previous_state_action_index = None
 
   def bundle_and_checkpoint(self, checkpoint_dir, iteration_number):

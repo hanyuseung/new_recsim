@@ -14,6 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Module of the simulator."""
-from recsim.simulator import environment # type: ignore
-from recsim.simulator import recsim_gym # type: ignore
-from recsim.simulator import runner_lib # type: ignore

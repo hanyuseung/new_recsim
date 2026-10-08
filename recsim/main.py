@@ -1,98 +1,63 @@
-# coding=utf-8
-# coding=utf-8
-# Copyright 2019 The RecSim Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-r"""An example of main function for training in RecSim.
-
-Use the interest evolution environment and a slateQ agent for illustration.
-
-To run locally:
-
-python main.py --base_dir=/tmp/interest_evolution \
-  --gin_bindings=simulator.runner_lib.Runner.max_steps_per_episode=50
-
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from absl import app
-from absl import flags
-import numpy as np
-from recsim.agents import full_slate_q_agent
-from recsim.environments import interest_evolution
-from recsim.simulator import runner_lib
+# Copyright 2019 The RecSim Authors. Licensed under the Apache License, Version 2.0.
+"""Run a small simulation or a train/evaluate experiment: python -m recsim.main."""
+import argparse
+from functools import partial
+from importlib import import_module
+from recsim.simulator.runner_lib import TrainRunner, EvalRunner, load_gin_configs
 
 
-FLAGS = flags.FLAGS
+def create_agent(environment, eval_mode=False, summary_writer=None, agent_name='random', seed=0):
+    common = dict(observation_space=environment.observation_space, action_space=environment.action_space)
+    if agent_name == 'random':
+        from recsim.agents.random_agent import RandomAgent
+        return RandomAgent(environment.action_space, random_seed=seed)
+    if agent_name == 'tabular_q':
+        from recsim.agents.tabular_q_agent import TabularQAgent
+        return TabularQAgent(**common, eval_mode=eval_mode, random_seed=seed)
+    if agent_name == 'full_slate_q':
+        from recsim.agents.full_slate_q_agent import FullSlateQAgent
+        return FullSlateQAgent(**common, eval_mode=eval_mode, summary_writer=summary_writer, seed=seed,
+                              batch_size=4, min_replay_history=4)
+    from recsim.agents.slate_decomp_q_agent import create_agent as create_slate_agent
+    if agent_name == 'slate_decomp_q':
+        agent_name = 'slate_greedy_greedy_q'
+    return create_slate_agent(agent_name, **common, eval_mode=eval_mode, summary_writer=summary_writer,
+                             seed=seed, batch_size=4, min_replay_history=4)
 
 
-def create_agent(sess, environment, eval_mode, summary_writer=None):
-  """Creates an instance of FullSlateQAgent.
-
-  Args:
-    sess: A `tf.Session` object for running associated ops.
-    environment: A recsim Gym environment.
-    eval_mode: A bool for whether the agent is in training or evaluation mode.
-    summary_writer: A Tensorflow summary writer to pass to the agent for
-      in-agent training statistics in Tensorboard.
-
-  Returns:
-    An instance of FullSlateQAgent.
-  """
-  kwargs = {
-      'observation_space': environment.observation_space,
-      'action_space': environment.action_space,
-      'summary_writer': summary_writer,
-      'eval_mode': eval_mode,
-  }
-  return full_slate_q_agent.FullSlateQAgent(sess, **kwargs)
-
-
-def main(argv):
-  if len(argv) > 1:
-    raise app.UsageError('Too many command-line arguments.')
-
-  runner_lib.load_gin_configs(FLAGS.gin_files, FLAGS.gin_bindings)
-  seed = 0
-  slate_size = 2
-  np.random.seed(seed)
-  env_config = {
-      'num_candidates': 5,
-      'slate_size': slate_size,
-      'resample_documents': True,
-      'seed': seed,
-  }
-
-  runner = runner_lib.TrainRunner(
-      base_dir=FLAGS.base_dir,
-      create_agent_fn=create_agent,
-      env=interest_evolution.create_environment(env_config),
-      episode_log_file=FLAGS.episode_log_file,
-      max_training_steps=50,
-      num_iterations=10)
-  runner.run_experiment()
-
-  runner = runner_lib.EvalRunner(
-      base_dir=FLAGS.base_dir,
-      create_agent_fn=create_agent,
-      env=interest_evolution.create_environment(env_config),
-      max_eval_episodes=5,
-      test_mode=True)
-  runner.run_experiment()
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--base_dir', default='outputs/recsim')
+    parser.add_argument('--agent_name', default='random')
+    parser.add_argument('--environment_name', choices=['interest_evolution', 'interest_exploration', 'long_term_satisfaction'], default='interest_evolution')
+    parser.add_argument('--mode', choices=['train', 'eval', 'both'], default='both')
+    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--num_candidates', type=int, default=5)
+    parser.add_argument('--slate_size', type=int, default=2)
+    parser.add_argument('--max_steps_per_episode', type=int, default=20)
+    parser.add_argument('--max_training_steps', type=int, default=40)
+    parser.add_argument('--num_iterations', type=int, default=2)
+    parser.add_argument('--max_eval_episodes', type=int, default=2)
+    parser.add_argument('--episode_log_file', default='')
+    parser.add_argument('--tensorboard', action='store_true')
+    parser.add_argument('--gin_files', action='append', default=[])
+    parser.add_argument('--gin_bindings', action='append', default=[])
+    args = parser.parse_args(argv)
+    load_gin_configs(args.gin_files, args.gin_bindings)
+    config = dict(num_candidates=args.num_candidates, slate_size=args.slate_size,
+                  resample_documents=True, seed=args.seed)
+    module = import_module(f'recsim.environments.{args.environment_name}')
+    factory = partial(create_agent, agent_name=args.agent_name, seed=args.seed)
+    common = dict(base_dir=args.base_dir, create_agent_fn=factory,
+                  max_steps_per_episode=args.max_steps_per_episode, tensorboard=args.tensorboard)
+    if args.mode in ('train', 'both'):
+        TrainRunner(env=module.create_environment(config), max_training_steps=args.max_training_steps,
+                    num_iterations=args.num_iterations, episode_log_file=args.episode_log_file, **common).run_experiment()
+    if args.mode in ('eval', 'both'):
+        returns = EvalRunner(env=module.create_environment(config), max_eval_episodes=args.max_eval_episodes,
+                             **common).run_experiment()
+        print(f'Evaluation returns: {returns}')
 
 
 if __name__ == '__main__':
-  flags.mark_flag_as_required('base_dir')
-  app.run(main)
+    main()

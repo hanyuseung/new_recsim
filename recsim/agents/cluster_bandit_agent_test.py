@@ -15,14 +15,14 @@
 # limitations under the License.
 """Tests for recsim.agents.cluster_bandit_agent."""
 
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 from recsim.agents import cluster_bandit_agent
 from recsim.environments import interest_exploration as ie
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class ClusterBanditAgentTest(tf.test.TestCase):
+class ClusterBanditAgentTest(test_case.TestCase):
 
   def dummy_observation_space(self):
     single_response_space = spaces.Dict({
@@ -66,11 +66,9 @@ class ClusterBanditAgentTest(tf.test.TestCase):
         self.dummy_observation_space(), action_space)
 
     # Create a set of documents
-    document_sampler = ie.IETopicDocumentSampler(seed=1)
-    documents = {}
-    for i in range(num_candidates):
-      video = document_sampler.sample_document()
-      documents[i] = video.create_observation()
+    # Explicit fixture keeps the quality-order assertion independent of RNG changes.
+    documents = {i: {'cluster_id': topic, 'quality': np.float32(quality)}
+                 for i, (topic, quality) in enumerate([(1, 3), (0, 2), (0, 1), (1, 1), (1, 2)])}
 
     # Past observation shows Topic 1 is better.
     user_obs = np.array([1, 1, 0, 1])
@@ -124,4 +122,4 @@ class ClusterBanditAgentTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

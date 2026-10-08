@@ -3,13 +3,13 @@
 # Python3 only, gymnasium, improved clarity
 
 import numpy as np
-import gymnasium as gym
 from gymnasium import spaces
 
 from recsim import choice_model
 from recsim import document
 from recsim import user
 from recsim import utils
+from recsim.config import validate_environment_config
 from recsim.simulator import environment
 from recsim.simulator import recsim_gym
 
@@ -62,8 +62,8 @@ class IEvResponse(user.AbstractResponse):
                 ),
                 "liked": spaces.Discrete(2),
                 "quality": spaces.Box(
-                    low=cls.MIN_QUALITY_SCORE,
-                    high=cls.MAX_QUALITY_SCORE,
+                    low=-np.inf,
+                    high=np.inf,
                     shape=(),
                     dtype=np.float32,
                 ),
@@ -71,9 +71,9 @@ class IEvResponse(user.AbstractResponse):
                 # click_doc_id: -1 = no click, 0 ~ num_candidates-1 = 아이템 id
                 "click_doc_id": spaces.Box(
                     low=-1,
-                    high=10000,
+                    high=np.iinfo(np.int64).max,
                     shape=(),
-                    dtype=np.int32,
+                    dtype=np.int64,
                 ),
             }
         )
@@ -90,7 +90,7 @@ class IEvVideo(document.AbstractDocument):
         self,
         doc_id,
         features,
-        cluster_id=None,
+        cluster_id=0,
         video_length=None,
         quality=None,
     ):
@@ -144,10 +144,10 @@ class IEvVideoSampler(document.AbstractDocumentSampler):
             self.get_doc_ctor().NUM_FEATURES,
         )
 
-        video_length = min(
+        video_length = max(0.0, min(
             self._rng.normal(self._len_mean, self._len_std),
             self.get_doc_ctor().MAX_VIDEO_LENGTH,
-        )
+        ))
 
         # item 개수 = candidate 수로 고정
         doc_id = self._doc_count % self._num_candidates
@@ -155,7 +155,7 @@ class IEvVideoSampler(document.AbstractDocumentSampler):
         doc = self._doc_ctor(
             doc_id=doc_id,
             features=features,
-            cluster_id=None,
+            cluster_id=0,
             video_length=video_length,
             quality=1.0,
         )
@@ -184,11 +184,11 @@ class UtilityModelVideoSampler(document.AbstractDocumentSampler):
         self._num_candidates = num_candidates  # ★ 저장
 
         trashy = np.linspace(self._min_u, 0, int(self._num_clusters * 0.7))
-        nutritious = np.linspace(0, self._max_u, int(self._num_clusters * 0.3))
+        nutritious = np.linspace(0, self._max_u, self._num_clusters - int(self._num_clusters * 0.7))
         self.cluster_means = np.concatenate([trashy, nutritious])
 
     def sample_document(self):
-        cid = self._rng.randint(0, self._num_clusters)
+        cid = self._rng.integers(0, self._num_clusters)
         features = np.zeros(self._num_clusters, dtype=np.float32)
         features[cid] = 1.0
         quality = self._rng.normal(self.cluster_means[cid], 0.1)
@@ -218,7 +218,7 @@ class IEvUserState(user.AbstractUserState):
     def __init__(
         self,
         user_interests,
-        time_budget=None,
+        time_budget=200.0,
         score_scaling=None,
         attention_prob=None,
         no_click_mass=None,
@@ -385,7 +385,7 @@ class IEvUserModel(user.AbstractUserModel):
                 target = doc.features - user_state.user_interests
                 alpha = compute_alpha(user_state.user_interests)
 
-                if np.random.rand() < np.dot(
+                if self._rng.random() < np.dot(
                     (user_state.user_interests + 1.0) * 0.5, mask
                 ):
                     user_state.user_interests += alpha * mask * target
@@ -424,6 +424,7 @@ def clicked_watchtime_reward(responses):
 # Environment Factory
 # ============================================================
 def create_environment(env_config):
+    env_config = validate_environment_config(env_config)
 
     user_model = IEvUserModel(
         slate_size=env_config["slate_size"],
@@ -452,4 +453,5 @@ def create_environment(env_config):
         reward_aggregator=clicked_watchtime_reward,
         metrics_aggregator=utils.aggregate_video_cluster_metrics,
         metrics_writer=utils.write_video_cluster_metrics,
+        seed=env_config["seed"], max_episode_steps=env_config.get("max_episode_steps"),
     )

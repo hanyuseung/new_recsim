@@ -16,21 +16,19 @@
 # limitations under the License.
 """Tests for recsim.agent."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import functools
-import os
+import tempfile
 
 from absl.testing import parameterized
-import gym
+import gymnasium as gym
 import numpy as np
+from recsim.environments import long_term_satisfaction as lts
 from recsim import agent
 from recsim.simulator import environment
 from recsim.simulator import recsim_gym
 from recsim.simulator import runner_lib
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
 class DummySingleUserAgent(agent.AbstractEpisodicRecommenderAgent):
@@ -57,25 +55,11 @@ class DummyMultiUserAgent(agent.AbstractMultiUserEpisodicRecommenderAgent):
     pass
 
 
-class DummySingleUserEnvironment(environment.SingleUserEnvironment):
-
-  def __init__(self):
-    pass
-
-
-class DummyMultiUserEnvironment(environment.MultiUserEnvironment):
-
-  def __init__(self):
-    pass
-
-
 def create_environment(env_config):
-  if env_config['multiuser_env']:
-    env = DummyMultiUserEnvironment()
-  else:
-    env = DummySingleUserEnvironment()
-  reward_aggregator = lambda x: x
-  return recsim_gym.RecSimGymEnv(env, reward_aggregator)
+  models = [lts.LTSUserModel(2, lts.LTSUserState, lts.LTSResponse, seed=i) for i in range(2)]
+  ctor = environment.MultiUserEnvironment if env_config['multiuser_env'] else environment.Environment
+  raw = ctor(models if env_config['multiuser_env'] else models[0], lts.LTSDocumentSampler(), 5, 2)
+  return recsim_gym.RecSimGymEnv(raw, lts.clicked_engagement_reward)
 
 
 class AgentTest(parameterized.TestCase):
@@ -93,8 +77,8 @@ class AgentTest(parameterized.TestCase):
       self, multiuser_env, multiuser_agent, should_succeed):
 
     def create_agent(
-        sess, env, summary_writer, eval_mode, multiuser_agent=True):
-      del sess, env, summary_writer, eval_mode  # unused
+        env, summary_writer, eval_mode, multiuser_agent=True):
+      del env, summary_writer, eval_mode  # unused
       action_space = gym.spaces.MultiDiscrete(np.ones((self.slate_size,)))
       if multiuser_agent:
         action_space = gym.spaces.Tuple([action_space] * self.num_users)
@@ -104,19 +88,19 @@ class AgentTest(parameterized.TestCase):
       return AgentClass(action_space)
 
     env_config = dict(multiuser_env=multiuser_env)
-    base_dir = '/tmp/Env%sAgent%s' % (multiuser_env, multiuser_agent)
-    create_agent_fn = functools.partial(create_agent,
-                                        multiuser_agent=multiuser_agent)
-    if not os.path.exists(base_dir):
-      os.makedirs(base_dir)
+    temporary = tempfile.TemporaryDirectory()
+    self.addCleanup(temporary.cleanup)
+    base_dir = temporary.name
+    create_agent_fn = functools.partial(create_agent, multiuser_agent=multiuser_agent)
     if should_succeed:  # constructors should work
-      _ = runner_lib.TrainRunner(
+      runner = runner_lib.TrainRunner(
           base_dir=base_dir,
           create_agent_fn=create_agent_fn,
           env=create_environment(env_config),
           max_training_steps=1,
           max_steps_per_episode=1,
           num_iterations=1)
+      runner.close()
     else:  # agent constructor should raise error
       with self.assertRaises(ValueError):
         _ = runner_lib.TrainRunner(
@@ -129,4 +113,4 @@ class AgentTest(parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

@@ -1,157 +1,44 @@
-# coding=utf-8
-# coding=utf-8
-# Copyright 2019 The RecSim Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""Agent that implements the Slate-Q algorithms."""
-
-import itertools
-import gin.tf
-from gym import spaces
-from recsim import agent as abstract_agent
-from recsim.agents.dopamine import dqn_agent
-import tensorflow.compat.v1 as tf
+# Copyright 2019 The RecSim Authors. Licensed under the Apache License, Version 2.0.
+"""Full-slate Q learning with a shared PyTorch user/slate network."""
+from itertools import permutations
+from math import perm
+import gin
+import numpy as np
+from recsim.agents.torch.dqn_agent import DQNAgentRecSim, recsim_dqn_network, torch
 
 
 @gin.configurable
-class FullSlateQAgent(dqn_agent.DQNAgentRecSim,
-                      abstract_agent.AbstractEpisodicRecommenderAgent):
-  """A recommender agent implements full slate Q-learning based on DQN agent.
+class FullSlateQAgent(DQNAgentRecSim):
+    def __init__(self, observation_space, action_space, *, max_slates=100000, **kwargs):
+        n, k = int(action_space.nvec[0]), len(action_space.nvec)
+        if perm(n, k) > max_slates:
+            raise ValueError(f'FullSlateQ needs {perm(n, k)} slates; increase max_slates explicitly or use SlateDecompQ')
+        self._all_possible_slates = list(permutations(range(n), k))
+        self._slate_indices = {s: i for i, s in enumerate(self._all_possible_slates)}
+        super().__init__(observation_space, action_space, **kwargs)
 
-  This is a standard, nondecomposed Q-learning method that treats each slate
-  atomically (i.e., holistically) as a single action.
-  """
+    def _make_network(self, hidden_sizes):
+        return recsim_dqn_network((1 + self._slate_size) * self._obs_adapter.width, hidden_sizes)
 
-  def __init__(self,
-               sess,
-               observation_space,
-               action_space,
-               optimizer_name='',
-               eval_mode=False,
-               **kwargs):
-    """Initializes a FullSlateQAgent.
+    def _q_values(self, network, states):
+        states = states[..., 0]
+        slates = self._tensor(self._all_possible_slates, torch.long)
+        docs = states[:, 1:][:, slates].flatten(start_dim=2)
+        users = states[:, :1].expand(-1, len(slates), -1)
+        return network(torch.cat((users, docs), dim=-1)).squeeze(-1)
 
-    Args:
-      sess: a Tensorflow session.
-      observation_space: A gym.spaces object that specifies the format of
-        observations.
-      action_space: A gym.spaces object that specifies the format of actions.
-      optimizer_name: The name of the optimizer.
-      eval_mode: A bool for whether the agent is in training or evaluation mode.
-      **kwargs: Keyword arguments to the DQNAgent.
-    """
-    self._num_candidates = int(action_space.nvec[0])
-    abstract_agent.AbstractEpisodicRecommenderAgent.__init__(self, action_space)
-    # Each slate is a single action. Assume ordering of items matters.
-    self._all_possible_slates = [
-        x for x in itertools.permutations(
-            range(self._num_candidates), action_space.nvec.shape[0])
-    ]
-    num_actions = len(self._all_possible_slates)
-    self._env_action_space = spaces.Discrete(num_actions)
+    def _greedy(self, state):
+        q = self._q_values(self.online, self._tensor(state[None]))[0]
+        return self._all_possible_slates[int(q.argmax())]
 
-    dqn_agent.DQNAgentRecSim.__init__(
-        self,
-        sess,
-        observation_space,
-        num_actions=num_actions,
-        stack_size=1,
-        optimizer_name='',
-        eval_mode=eval_mode,
-        **kwargs)
-
-  # Builds a tower to compute Q-value for each possible slate.
-  def _network_adapter(self, states, scope):
-    self._validate_states(states)
-
-    with tf.name_scope('network'):
-      q_value_list = []
-      for slate in self._all_possible_slates:
-        user = tf.squeeze(states[:, 0, :, :], axis=2)
-        docs = []
-        for i in slate:
-          docs.append(tf.squeeze(states[:, i + 1, :, :], axis=2))
-        q_value_list.append(self.network(user, tf.concat(docs, axis=1), scope))
-      q_values = tf.concat(q_value_list, axis=1)
-
-    return dqn_agent.DQNNetworkType(q_values)
-
-  def _build_networks(self):
-    with tf.name_scope('networks'):
-      self._replay_net_outputs = self._network_adapter(self._replay.states,
-                                                       'Online')
-      self._replay_next_target_net_outputs = self._network_adapter(
-          self._replay.states, 'Target')
-      self._net_outputs = self._network_adapter(self.state_ph, 'Online')
-      self._q_argmax = tf.argmax(input=self._net_outputs.q_values, axis=1)[0]
-
-  def step(self, reward, observation):
-    """Receives observations of environment and returns a slate.
-
-    Args:
-      reward: A double representing the overall reward to the recommended slate.
-      observation: A dictionary that stores all the observations including:
-        - user: A list of floats representing the user's observed state
-        - doc: A list of observations of document features
-        - response: A vector valued response signal that represent user's
-          response to each document
-
-    Returns:
-      slate: An integer array of size _slate_size, where each element is an
-        index in the list of document observvations.
-    """
-    return self._all_possible_slates[super(FullSlateQAgent, self).step(
-        reward, self._obs_adapter.encode(observation))]
-
-  def _build_replay_buffer(self, use_staging):
-    """Creates the replay buffer used by the agent.
-
-    Args:
-      use_staging: bool, if True, uses a staging area to prefetch data for
-        faster training.
-
-    Returns:
-      A WrapperReplayBuffer object.
-    """
-    return dqn_agent.wrapped_replay_buffer(
-        observation_shape=self.observation_shape,
-        stack_size=self.stack_size,
-        use_staging=use_staging,
-        update_horizon=self.update_horizon,
-        gamma=self.gamma,
-        observation_dtype=self.observation_dtype)
-
-  def begin_episode(self, observation):
-    """Returns the agent's first action for this episode.
-
-    Args:
-      observation: numpy array, the environment's initial observation.
-
-    Returns:
-      An integer array of size _slate_size, the selected slated, each
-      element of which is an index in the list of doc_obs.
-    """
-    return self._all_possible_slates[super(FullSlateQAgent, self).begin_episode(
-        self._obs_adapter.encode(observation))]
-
-  def end_episode(self, reward, observation):
-    """Signals the end of the episode to the agent.
-
-    We store the observation of the current time step, which is the last
-    observation of the episode.
-
-    Args:
-      reward: float, the last reward from the environment.
-      observation: numpy array, the environment's initial observation.
-    """
-    super(FullSlateQAgent, self).end_episode(reward)
+    def _loss(self, batch):
+        states = self._tensor(np.stack([t['state'] for t in batch]))
+        next_states = self._tensor(np.stack([t['next_state'] for t in batch]))
+        indices = self._tensor([self._slate_indices[tuple(t['action'])] for t in batch], torch.long)
+        predicted = self._q_values(self.online, states).gather(1, indices[:, None]).squeeze(1)
+        with torch.no_grad():
+            future = self._q_values(self.target, next_states).max(dim=1).values
+            reward = self._tensor([t['reward'] for t in batch])
+            terminal = self._tensor([t['terminated'] for t in batch])
+            target = reward + self.gamma * (1 - terminal) * future
+        return torch.nn.functional.mse_loss(predicted, target)

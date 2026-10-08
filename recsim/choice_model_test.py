@@ -18,10 +18,10 @@
 import numpy as np
 from recsim import choice_model
 from recsim.environments import interest_evolution as evolution
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class SoftmaxTest(tf.test.TestCase):
+class SoftmaxTest(test_case.TestCase):
 
   def test_softmax_single_int(self):
     self.assertAllClose(choice_model.softmax([0]), [1.0])
@@ -41,7 +41,7 @@ class SoftmaxTest(tf.test.TestCase):
         np.array([0.48, 0.24, 0.16, 0.12]))
 
 
-class MultinomialChoiceModelTest(tf.test.TestCase):
+class MultinomialChoiceModelTest(test_case.TestCase):
 
   def setUp(self):
     super(MultinomialChoiceModelTest, self).setUp()
@@ -97,7 +97,7 @@ class MultinomialChoiceModelTest(tf.test.TestCase):
     self.assertAlmostEqual(mnp_model._score_no_click, 0, delta=0.001)
 
 
-class CascadeChoiceModelTest(tf.test.TestCase):
+class CascadeChoiceModelTest(test_case.TestCase):
 
   def setUp(self):
     super(CascadeChoiceModelTest, self).setUp()
@@ -167,4 +167,4 @@ class CascadeChoiceModelTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

@@ -46,7 +46,7 @@ class AbstractUserState(abc.ABC):
   """Abstract class to represent a user's state."""
 
   # Number of features to represent the user's interests.
-  NUM_FEATURES = None
+  NUM_FEATURES: int | None = None
 
   @abc.abstractmethod
   def create_observation(self):
@@ -82,9 +82,11 @@ class AbstractUserSampler(abc.ABC):
     self._seed = seed
     self.reset_sampler()
 
-  def reset_sampler(self):
-    """Resets the internal random number generator."""
-    self._rng = np.random.RandomState(self._seed)
+  def reset_sampler(self, seed=None):
+    """Reseeds this sampler; omitted seed replays its configured stream."""
+    if seed is not None:
+      self._seed = seed
+    self._rng = np.random.default_rng(self._seed)
 
   @abc.abstractmethod
   def sample_user(self):
@@ -117,6 +119,8 @@ class AbstractUserModel(abc.ABC):
     if not response_model_ctor:
       raise TypeError('response_model_ctor is a required callable')
 
+    self._seed = user_sampler._seed
+    self._rng = np.random.default_rng(self._seed)
     self._user_sampler = user_sampler
     self._user_state = self._user_sampler.sample_user()
     self._response_model_ctor = response_model_ctor
@@ -139,9 +143,15 @@ class AbstractUserModel(abc.ABC):
     """Resets the user to a freshly sampled state."""
     self._user_state = self._user_sampler.sample_user()
 
-  def reset_sampler(self):
-    """Resets the sampler RNG."""
-    self._user_sampler.reset_sampler()
+  def reset_sampler(self, seed=None):
+    """Reset independent sampler, dynamics and choice streams."""
+    seed = self._seed if seed is None else seed
+    self._seed = seed
+    sampler_seed, dynamics_seed, choice_seed = np.random.SeedSequence(seed).spawn(3)
+    self._user_sampler.reset_sampler(int(sampler_seed.generate_state(1)[0]))
+    self._rng = np.random.default_rng(dynamics_seed)
+    if hasattr(self, "choice_model"):
+      self.choice_model.seed(int(choice_seed.generate_state(1)[0]))
 
   @abc.abstractmethod
   def is_terminal(self):

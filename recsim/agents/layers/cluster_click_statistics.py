@@ -14,11 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Helper class to collect cluster click and impression counts."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 
 from recsim.agents.layers import sufficient_statistics
@@ -77,9 +74,9 @@ class ClusterClickStatsLayer(sufficient_statistics.SufficientStatisticsLayer):
   def _create_observation(self):
     return {
         'impression_count':
-            np.array(self._sufficient_statistics['impression_count']),
+            np.array(self._sufficient_statistics['impression_count'], dtype=np.float32),
         'click_count':
-            np.array(self._sufficient_statistics['click_count']),
+            np.array(self._sufficient_statistics['click_count'], dtype=np.float32),
     }
 
   def _update(self, observation):

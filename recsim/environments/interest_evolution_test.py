@@ -15,13 +15,10 @@
 # limitations under the License.
 """Tests for recsim.environments.interest_evolution."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 import numpy as np
 from recsim import choice_model
 from recsim.environments import interest_evolution
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
 class FakeChoiceModel(choice_model.AbstractChoiceModel):
@@ -40,7 +37,7 @@ class FakeChoiceModel(choice_model.AbstractChoiceModel):
     return self._select_index
 
 
-class InterestEvolutionTest(tf.test.TestCase):
+class InterestEvolutionTest(test_case.TestCase):
 
   def setUp(self):
     super(InterestEvolutionTest, self).setUp()
@@ -109,4 +106,4 @@ class InterestEvolutionTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

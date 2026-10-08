@@ -14,10 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Classes for Bandit Algorithms."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 import numpy as np
+from scipy.special import xlogy
 
 
 class MABAlgorithm(object):
@@ -48,11 +46,13 @@ class MABAlgorithm(object):
       raise ValueError('num_arms must be greater than one.')
     self.pulls = np.zeros(num_arms)
     self.reward = np.zeros(num_arms)
-    self._rng = np.random.RandomState(seed)
+    self._rng = np.random.default_rng(seed)
 
     self.optimism_scaling = 1.0
     for attr, val in params.items():
       setattr(self, attr, val)
+    if not np.isfinite(self.optimism_scaling) or self.optimism_scaling <= 0:
+      raise ValueError('optimism_scaling must be positive and finite')
 
   def set_state(self, pulls, reward):
     if len(pulls) != len(self.pulls) or len(reward) != len(self.reward):
@@ -61,8 +61,10 @@ class MABAlgorithm(object):
     self.reward[:] = reward
 
   def update(self, arm, reward):
-    if reward < 0 or reward > 1:
+    if not np.isfinite(reward) or reward < 0 or reward > 1:
       raise ValueError('reward must be in [0, 1].')
+    if not isinstance(arm, (int, np.integer)) or not 0 <= arm < len(self.pulls):
+      raise ValueError('arm is out of range')
     self.pulls[arm] += 1
     self.reward[arm] += reward
 
@@ -78,7 +80,7 @@ class UCB1(MABAlgorithm):
     """Computes upper confidence bounds of reward / pulls at round t."""
     # Pull any arm that we haven't pulled.
     if not all(self.pulls):
-      return np.where(self.pulls > 0, 0, np.Inf)
+      return np.where(self.pulls > 0, 0, np.inf)
     ct = self.optimism_scaling * np.sqrt(2 * np.log(t))
     return self.reward / self.pulls + ct * np.sqrt(1 / self.pulls)
 
@@ -101,7 +103,8 @@ class KLUCB(MABAlgorithm):
     """Computes upper confidence bounds of reward / pulls at round t."""
     # Pull any arm that we haven't pulled.
     if not all(self.pulls):
-      return np.where(self.pulls > 0, 0, np.Inf)
+      return np.where(self.pulls > 0, 0, np.inf)
+    t = max(float(t), 3.)
     c = self.optimism_scaling**2 * (np.log(t) +
                                     3 * np.log(np.log(t))) / self.pulls
     p = self.reward / self.pulls
@@ -112,8 +115,7 @@ class KLUCB(MABAlgorithm):
     qmax = np.ones(p.size)
     for _ in range(16):  # Error bounded by 2^-16.
       q = (qmax + qmin) / 2
-      ndx = (np.where(p > 0, p * np.log(p / q), 0) +
-             np.where(p < 1, (1 - p) * np.log((1 - p) / (1 - q)), 0)) < c
+      ndx = (xlogy(p, p) - xlogy(p, q) + xlogy(1 - p, 1 - p) - xlogy(1 - p, 1 - q)) < c
       qmin[ndx] = q[ndx]
       qmax[~ndx] = q[~ndx]
 
@@ -136,7 +138,7 @@ class ThompsonSampling(MABAlgorithm):
 
   def update(self, arm, reward):
     if reward > 0 and reward < 1:
-      reward = float(self._rng.rand() < reward)
+      reward = float(self._rng.random() < reward)
     MABAlgorithm.update(self, arm, reward)
 
   def get_score(self, t):

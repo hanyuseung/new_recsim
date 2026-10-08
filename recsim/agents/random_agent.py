@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """A simple recommender system agent that recommends random slates."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 
 from absl import logging
@@ -31,7 +28,7 @@ class RandomAgent(agent.AbstractEpisodicRecommenderAgent):
 
   def __init__(self, action_space, random_seed=0):
     super(RandomAgent, self).__init__(action_space)
-    self._rng = np.random.RandomState(random_seed)
+    self._rng = np.random.default_rng(random_seed)
 
   def step(self, reward, observation):
     """Records the most recent transition and returns the agent's next action.

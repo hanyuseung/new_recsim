@@ -19,10 +19,10 @@ import numpy as np
 from recsim.agents import cluster_bandit_agent
 from recsim.agents.layers import cluster_click_statistics
 from recsim.environments import interest_exploration as ie
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class UCB1AgentTest(tf.test.TestCase):
+class UCB1AgentTest(test_case.TestCase):
 
   def test_step(self):
     # Initialize agent.
@@ -80,8 +80,8 @@ class UCB1AgentTest(tf.test.TestCase):
         dict(user=observation3, doc=documents, response=response2_obs))
     # Pick the first topic which has the best UCB and then pick the document
     # with the best quality in it.
-    pulls = np.array([1, 1], dtype=np.float)
-    rewards = np.array([0, 0], dtype=np.float)
+    pulls = np.array([1, 1], dtype=float)
+    rewards = np.array([0, 0], dtype=float)
     rewards[1 - picked_cluster] = 1
     ct = np.sqrt(2.0 * np.log(2.0))
     topic_index = rewards / pulls + ct * np.sqrt(1.0 / pulls)
@@ -99,4 +99,4 @@ class UCB1AgentTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

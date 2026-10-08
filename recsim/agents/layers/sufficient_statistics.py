@@ -14,12 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Helper classes to record user response history on recommendations."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import abc
-from gym import spaces
+from gymnasium import spaces
 
 from recsim import agent
 
@@ -90,7 +87,7 @@ class SufficientStatisticsLayer(agent.AbstractHierarchicalAgentLayer):
     """Formats self._sufficient_statistics into an observation."""
 
   def _preprocess_reward_observation(self, reward, observation):
-    self._update(observation)
+    self._update({**observation, 'response': None} if getattr(self, '_initializing', False) else observation)
     augmented_observation = {key: value for key, value in observation.items()}
     augmented_observation['user'] = {
         'raw_observation': augmented_observation['user'],
@@ -111,8 +108,16 @@ class SufficientStatisticsLayer(agent.AbstractHierarchicalAgentLayer):
     ]
     return self._postprocess_actions(action_list)
 
-  def end_episode(self, reward, observation):
-    super(SufficientStatisticsLayer, self).end_episode(reward, observation)
+  def begin_episode(self, observation=None):
+    self._reset()
+    self._initializing = True
+    try:
+      return super().begin_episode(observation)
+    finally:
+      self._initializing = False
+
+  def end_episode(self, reward, observation, *, terminated=True, truncated=False):
+    super().end_episode(reward, observation, terminated=terminated, truncated=truncated)
     self._reset()
 
   def _reset(self):

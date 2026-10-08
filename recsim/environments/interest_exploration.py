@@ -37,21 +37,19 @@ the agent to ignore niche interests, producing a suboptimal policy. This
 scenario can be seen as a correlated arms bandit problem.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from absl import flags
 from absl import logging
-import gin.torch
+import gin
 from gymnasium import spaces
 import numpy as np
-from recsim import choice_model  # type: ignore
-from recsim import document  # type: ignore
-from recsim import user  # type: ignore
-from recsim import utils  # type: ignore
-from recsim.simulator import environment  # type: ignore
-from recsim.simulator import recsim_gym  # type: ignore
+from recsim import choice_model 
+from recsim import document 
+from recsim import user 
+from recsim import utils 
+from recsim.config import validate_environment_config
+from recsim.simulator import environment 
+from recsim.simulator import recsim_gym 
 
 FLAGS = flags.FLAGS
 
@@ -166,7 +164,7 @@ class IEUserState(user.AbstractUserState):
 
   def create_observation(self):
     """User's topic_affinity is not observable."""
-    return np.array([])
+    return np.array([], dtype=np.float32)
 
   @staticmethod
   def observation_space():
@@ -260,7 +258,7 @@ class IEResponse(user.AbstractResponse):
   def create_observation(self):
     return {
         'click': int(self.clicked),
-        'quality': np.array(self.quality),
+        'quality': np.array(self.quality, dtype=np.float32),
         'cluster_id': self.cluster_id
     }
 
@@ -294,7 +292,7 @@ class IEDocument(document.AbstractDocument):
     super(IEDocument, self).__init__(doc_id)
 
   def create_observation(self):
-    return {'quality': np.array(self.quality), 'cluster_id': self.cluster_id}
+    return {'quality': np.array(self.quality, dtype=np.float32), 'cluster_id': self.cluster_id}
 
   @classmethod
   def observation_space(cls):
@@ -379,6 +377,7 @@ def total_clicks_reward(responses):
 
 
 def create_environment(env_config):
+  env_config = validate_environment_config(env_config)
   """Creates an interest exploration environment."""
 
   document_sampler = IETopicDocumentSampler(seed=env_config['seed'])
@@ -400,4 +399,5 @@ def create_environment(env_config):
 
   return recsim_gym.RecSimGymEnv(ieenv, total_clicks_reward,
                                  utils.aggregate_video_cluster_metrics,
-                                 utils.write_video_cluster_metrics)
+                                 utils.write_video_cluster_metrics, seed=env_config["seed"],
+                                 max_episode_steps=env_config.get("max_episode_steps"))

@@ -15,19 +15,16 @@
 # limitations under the License.
 """Tests for recsim.agents.layers.cluster_click_statistics."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from gym import spaces
-import mock
+from gymnasium import spaces
+from unittest import mock
 import numpy as np
 from recsim.agents import cluster_bandit_agent
 from recsim.agents.layers import cluster_click_statistics
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class ClusterClickStatisticsTest(tf.test.TestCase):
+class ClusterClickStatisticsTest(test_case.TestCase):
 
   def setUp(self):
     self.slate_size = 2
@@ -128,4 +125,4 @@ class ClusterClickStatisticsTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

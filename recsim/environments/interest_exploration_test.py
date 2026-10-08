@@ -15,15 +15,12 @@
 # limitations under the License.
 """Tests for recsim.environments.interest_exploration."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 import numpy as np
 from recsim.environments import interest_exploration
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class InterestExplorationTest(tf.test.TestCase):
+class InterestExplorationTest(test_case.TestCase):
 
   def setUp(self):
     super(InterestExplorationTest, self).setUp()
@@ -37,11 +34,10 @@ class InterestExplorationTest(tf.test.TestCase):
     self._env = interest_exploration.create_environment(env_config)
 
   def test_step(self):
-    self._env.seed(0)
-    obs0 = self._env.reset()
+    obs0, _ = self._env.reset(seed=0)
     self.assertEqual((0,), obs0['user'].shape)
     slate = np.array([0, 1])
-    obs, reward, done, _ = self._env.step(slate)
+    obs, reward, done, truncated, _ = self._env.step(slate)
     doc_obs0 = list(obs0['doc'].values())
     doc_obs = list(obs['doc'].values())
     for i, resp in enumerate(obs['response']):
@@ -53,4 +49,4 @@ class InterestExplorationTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

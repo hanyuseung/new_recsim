@@ -18,10 +18,10 @@
 import collections
 import numpy as np
 from recsim import utils
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class UtilsTest(tf.test.TestCase):
+class UtilsTest(test_case.TestCase):
 
   def test_aggregate_video_cluster_metrics(self):
     metrics = collections.defaultdict(float)
@@ -52,4 +52,4 @@ class UtilsTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+  test_case.main()

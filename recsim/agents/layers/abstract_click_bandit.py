@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Agent that picks topics based on the UCB1 algorithm given past responses."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 
 import gin
@@ -67,25 +64,26 @@ class AbstractClickBanditLayer(agent.AbstractHierarchicalAgentLayer):
                                                    *arm_base_agent_ctors)
     self._alg_ctor = alg_ctor
     self._random_seed = random_seed
+    self._rng = np.random.default_rng(random_seed)
     self._params = {'optimism_scaling': ci_scaling}
     kwargs['observation_space'] = observation_space
     kwargs['action_space'] = action_space
     self._num_arms = len(self._base_agent_ctors)
     user_observation_space = observation_space.spaces['user'].spaces
     if 'sufficient_statistics' not in user_observation_space:
-      ValueError('observation_space.spaces[\'user\'] must contain \'sufficient_'
+      raise ValueError('observation_space.spaces[\'user\'] must contain \'sufficient_'
                  'statistics\' key.')
     suffstat_observation_space = user_observation_space[
         'sufficient_statistics'].spaces
     if 'impression_count' not in suffstat_observation_space:
-      ValueError('sufficient_statistics must contain \'impression_count\' key.')
+      raise ValueError('sufficient_statistics must contain \'impression_count\' key.')
     if 'click_count' not in suffstat_observation_space:
-      ValueError('sufficient_statistics must contain \'click_count\' key.')
+      raise ValueError('sufficient_statistics must contain \'click_count\' key.')
     if self._num_arms != suffstat_observation_space['impression_count'].shape[0]:
-      ValueError('Dimension of impression_count must be equal to number '
+      raise ValueError('Dimension of impression_count must be equal to number '
                  'of arms.')
     if self._num_arms != suffstat_observation_space['click_count'].shape[0]:
-      ValueError('Dimension of click_count must be equal to number ' 'of arms.')
+      raise ValueError('Dimension of click_count must be equal to number ' 'of arms.')
     self._base_agents = [
         base_agent_ctor(**kwargs) for base_agent_ctor in self._base_agent_ctors
     ]
@@ -93,7 +91,7 @@ class AbstractClickBanditLayer(agent.AbstractHierarchicalAgentLayer):
   def _postprocess_actions(self, actions):
     slate = []
     for action in actions:
-      if not bool(action):
+      if action is None or len(action) == 0:
         continue
       recs_to_use = min(len(action), self._slate_size - len(slate))
       # Make sure action is not a numpy array.
@@ -123,7 +121,7 @@ class AbstractClickBanditLayer(agent.AbstractHierarchicalAgentLayer):
     user_obs = observation['user']['sufficient_statistics']
     pulls = user_obs['impression_count']
     clicks = user_obs['click_count']
-    mab_alg = self._alg_ctor(len(pulls), self._params, self._random_seed)
+    mab_alg = self._alg_ctor(len(pulls), self._params, int(self._rng.integers(2**32)))
     mab_alg.set_state(pulls, clicks)
     arm_pctr_ucb = mab_alg.get_score(np.sum(pulls))
     # Use (topic_pctr_ucb, document_quality) as the criterion.

@@ -14,8 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Module importing the core library."""
-from recsim import agent
-from recsim import choice_model
-from recsim import document
-from recsim import user
-from recsim import utils
