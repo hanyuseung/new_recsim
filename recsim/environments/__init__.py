@@ -14,6 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Module importing all environments."""
-from recsim.environments import interest_evolution  # type: ignore
-from recsim.environments import interest_exploration  # type: ignore
-from recsim.environments import long_term_satisfaction  # type: ignore

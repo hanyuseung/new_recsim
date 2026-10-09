@@ -18,38 +18,34 @@
 import collections
 import numpy as np
 from recsim import utils
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class UtilsTest(tf.test.TestCase):
-
-  def test_aggregate_video_cluster_metrics(self):
-    metrics = collections.defaultdict(float)
-    metrics['impression'] = 10
-    metrics['cluster_watch_count_cluster_0'] = 1
-    metrics['cluster_watch_count_no_click'] = 9
-    metrics['quality'] = 0.7
-    metrics['click'] = 1
-    responses = ({
-        'click': 1,
-        'quality': np.array(0.5),
-        'cluster_id': np.array(1)
-    }, {
-        'click': 0,
-        'quality': np.array(0.8),
-        'cluster_id': np.array(2)
-    })
-    metrics = utils.aggregate_video_cluster_metrics(responses, metrics)
-    self.assertEqual(
-        metrics, {
-            'impression': 11.0,
-            'cluster_watch_count_cluster_0': 1.0,
-            'cluster_watch_count_cluster_1': 1.0,
-            'cluster_watch_count_no_click': 9.0,
-            'quality': 1.2,
-            'click': 2.0
-        })
+class UtilsTest(test_case.TestCase):
+    def test_aggregate_video_cluster_metrics(self):
+        metrics = collections.defaultdict(float)
+        metrics["impression"] = 10
+        metrics["cluster_watch_count_cluster_0"] = 1
+        metrics["cluster_watch_count_no_click"] = 9
+        metrics["quality"] = 0.7
+        metrics["click"] = 1
+        responses = (
+            {"click": 1, "quality": np.array(0.5), "cluster_id": np.array(1)},
+            {"click": 0, "quality": np.array(0.8), "cluster_id": np.array(2)},
+        )
+        metrics = utils.aggregate_video_cluster_metrics(responses, metrics)
+        self.assertEqual(
+            metrics,
+            {
+                "impression": 11.0,
+                "cluster_watch_count_cluster_0": 1.0,
+                "cluster_watch_count_cluster_1": 1.0,
+                "cluster_watch_count_no_click": 9.0,
+                "quality": 1.2,
+                "click": 2.0,
+            },
+        )
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    test_case.main()

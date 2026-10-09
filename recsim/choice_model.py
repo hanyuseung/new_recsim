@@ -7,7 +7,15 @@ import numpy as np
 
 def softmax(vector):
     """Numerically stable softmax."""
-    vector = np.array(vector)
+    vector = np.asarray(vector, dtype=np.float64)
+    if (
+        vector.ndim != 1
+        or vector.size == 0
+        or np.any(np.isnan(vector))
+        or np.any(np.isposinf(vector))
+        or np.all(np.isneginf(vector))
+    ):
+        raise ValueError("softmax requires nonempty finite logits (negative infinity is allowed)")
     v = vector - np.max(vector)
     exp_v = np.exp(v)
     return exp_v / np.sum(exp_v)
@@ -19,7 +27,16 @@ def softmax(vector):
 class AbstractChoiceModel(abc.ABC):
     """Abstract base class for user choice models."""
 
-    _scores = None          # numpy array of per-document scores
+    def seed(self, seed=None):
+        self._rng = np.random.default_rng(seed)
+
+    @property
+    def rng(self):
+        if not hasattr(self, "_rng"):
+            self.seed(0)
+        return self._rng
+
+    _scores = None  # numpy array of per-document scores
     _score_no_click = None  # scalar
 
     @abc.abstractmethod
@@ -63,9 +80,13 @@ class NormalizableChoiceModel(AbstractChoiceModel):
     def choose_item(self):
         """Sample index according to normalized (scores + no-click) probs."""
         all_scores = np.append(self._scores, self._score_no_click)
+        if not np.all(np.isfinite(all_scores)) or np.any(all_scores < 0) or all_scores.sum() <= 0:
+            raise ValueError(
+                "Choice probabilities require finite nonnegative scores with positive sum"
+            )
         probs = all_scores / np.sum(all_scores)
 
-        idx = np.random.choice(len(probs), p=probs)
+        idx = self.rng.choice(len(probs), p=probs)
 
         # last index corresponds to 'no click'
         if idx == len(probs) - 1:
@@ -102,11 +123,11 @@ class MultinomialLogitChoiceModel(NormalizableChoiceModel):
 # ======================================================================
 class MultinomialProportionalChoiceModel(NormalizableChoiceModel):
     """Choice model with proportional probabilities:
-        p(i) = (score_i - min_normalizer) / sum(...)
+    p(i) = (score_i - min_normalizer) / sum(...)
     """
 
     def __init__(self, choice_features):
-        self._min_normalizer = choice_features.get("min_normalizer")
+        self._min_normalizer = choice_features.get("min_normalizer", 0.0)
         self._no_click_mass = choice_features.get("no_click_mass", 0.0)
 
     def score_documents(self, user_state, doc_obs):
@@ -136,28 +157,33 @@ class CascadeChoiceModel(NormalizableChoiceModel):
 
     def __init__(self, choice_features):
         self._attention_prob = choice_features.get("attention_prob", 1.0)
-        self._score_scaling = choice_features.get("score_scaling")
+        self._score_scaling = choice_features.get("score_scaling", 1.0)
 
         if not (0.0 <= self._attention_prob <= 1.0):
             raise ValueError("attention_prob must be in [0, 1]")
 
-        if self._score_scaling <= 0.0:
-            raise ValueError("score_scaling must be positive")
+        if (
+            self._score_scaling is None
+            or not np.isfinite(self._score_scaling)
+            or self._score_scaling < 0.0
+        ):
+            raise ValueError("score_scaling must be nonnegative")
 
     def _positional_normalization(self, scores):
         """Normalize scores as cascade click probabilities."""
         no_click_prob = 1.0
+        scores = np.asarray(scores, dtype=float)
+        if not np.all(np.isfinite(scores)) or np.any(scores < 0):
+            raise ValueError("Cascade scores must be finite and nonnegative")
         click_probs = np.zeros_like(scores)
 
         for i in range(len(scores)):
             scaled = self._score_scaling * scores[i]
             if scaled > 1.0:
-                raise ValueError(
-                    f"score_scaling makes probability > 1: original={scores[i]}"
-                )
+                raise ValueError(f"score_scaling makes probability > 1: original={scores[i]}")
 
             click_probs[i] = no_click_prob * self._attention_prob * scaled
-            no_click_prob *= (1.0 - self._attention_prob * scaled)
+            no_click_prob *= 1.0 - self._attention_prob * scaled
 
         self._scores = click_probs
         self._score_no_click = no_click_prob
@@ -176,7 +202,7 @@ class ProportionalCascadeChoiceModel(CascadeChoiceModel):
     """Cascade model where score → score - min_normalizer."""
 
     def __init__(self, choice_features):
-        self._min_normalizer = choice_features.get("min_normalizer")
+        self._min_normalizer = choice_features.get("min_normalizer", 0.0)
         super().__init__(choice_features)
 
     def score_documents(self, user_state, doc_obs):

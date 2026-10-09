@@ -6,3 +6,13 @@ recsim/simulator/__pycache__/
 myenv/
 *.csv
 *.jsonl
+
+.venv*/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/
+.ipynb_checkpoints/
+outputs/

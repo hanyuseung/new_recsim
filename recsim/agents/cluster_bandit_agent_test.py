@@ -15,113 +15,115 @@
 # limitations under the License.
 """Tests for recsim.agents.cluster_bandit_agent."""
 
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 from recsim.agents import cluster_bandit_agent
 from recsim.environments import interest_exploration as ie
-import tensorflow.compat.v1 as tf
+from recsim.testing import test_case
 
 
-class ClusterBanditAgentTest(tf.test.TestCase):
-
-  def dummy_observation_space(self):
-    single_response_space = spaces.Dict({
-        'cluster_id': spaces.Discrete(2),
-        'click': spaces.Discrete(2)
-    })
-    doc_space = spaces.Dict(
-        {0: spaces.Dict({'cluster_id': spaces.Discrete(2)})})
-    user_space = spaces.Dict({
-        'sufficient_statistics':
-            spaces.Dict({
-                'impression_count':
-                    spaces.Box(np.array([0] * 2), np.array([np.inf] * 2)),
-                'click_count':
-                    spaces.Box(np.array([0] * 2), np.array([np.inf] * 2))
-            })
-    })
-    return spaces.Dict({
-        'user': user_space,
-        'doc': doc_space,
-        'response': spaces.Tuple([
-            single_response_space,
-        ])
-    })
-
-  def doc_user_to_sufficient_stats(self, docs, observation):
-    sufficient_stats_observation = {'user': {'sufficient_statistics': {}}}
-    sufficient_stats_observation['user']['sufficient_statistics'][
-        'impression_count'] = observation[:2]
-    sufficient_stats_observation['user']['sufficient_statistics'][
-        'click_count'] = observation[2:]
-    sufficient_stats_observation['doc'] = docs
-    return sufficient_stats_observation
-
-  def test_step_with_bigger_slate(self):
-    # Initialize agent.
-    slate_size = 5
-    num_candidates = 5
-    action_space = spaces.MultiDiscrete(num_candidates * np.ones((slate_size,)))
-    agent = cluster_bandit_agent.ClusterBanditAgent(
-        self.dummy_observation_space(), action_space)
-
-    # Create a set of documents
-    document_sampler = ie.IETopicDocumentSampler(seed=1)
-    documents = {}
-    for i in range(num_candidates):
-      video = document_sampler.sample_document()
-      documents[i] = video.create_observation()
-
-    # Past observation shows Topic 1 is better.
-    user_obs = np.array([1, 1, 0, 1])
-    sufficient_stats_observation = self.doc_user_to_sufficient_stats(
-        documents, user_obs)
-    slate = agent.step(0, sufficient_stats_observation)
-    # Documents in Topic 0 sorted by quality: 1, 2.
-    # Documents in Topic 1 sorted by quality: 0, 4, 3.
-    self.assertAllEqual(slate, [0, 4, 3, 1, 2])
-
-  def test_bundle_and_unbundle_trivial(self):
-    action_space = spaces.MultiDiscrete(2 * np.ones((2,)))
-    agent = cluster_bandit_agent.ClusterBanditAgent(
-        self.dummy_observation_space(), action_space)
-    self.assertFalse(agent.unbundle('', 0, {}))
-    self.assertEqual(
-        {
-            'base_agent_bundle_0': {
-                'episode_num': 0
-            },
-            'base_agent_bundle_1': {
-                'episode_num': 0
+class ClusterBanditAgentTest(test_case.TestCase):
+    def dummy_observation_space(self):
+        single_response_space = spaces.Dict(
+            {"cluster_id": spaces.Discrete(2), "click": spaces.Discrete(2)}
+        )
+        doc_space = spaces.Dict({0: spaces.Dict({"cluster_id": spaces.Discrete(2)})})
+        user_space = spaces.Dict(
+            {
+                "sufficient_statistics": spaces.Dict(
+                    {
+                        "impression_count": spaces.Box(np.array([0] * 2), np.array([np.inf] * 2)),
+                        "click_count": spaces.Box(np.array([0] * 2), np.array([np.inf] * 2)),
+                    }
+                )
             }
-        }, agent.bundle_and_checkpoint('', 0))
+        )
+        return spaces.Dict(
+            {
+                "user": user_space,
+                "doc": doc_space,
+                "response": spaces.Tuple(
+                    [
+                        single_response_space,
+                    ]
+                ),
+            }
+        )
 
-  def test_bundle_and_unbundle(self):
-    # Initialize agent
-    slate_size = 2
-    num_candidates = 5
-    action_space = spaces.MultiDiscrete(num_candidates * np.ones((slate_size,)))
+    def doc_user_to_sufficient_stats(self, docs, observation):
+        sufficient_stats_observation = {"user": {"sufficient_statistics": {}}}
+        sufficient_stats_observation["user"]["sufficient_statistics"]["impression_count"] = (
+            observation[:2]
+        )
+        sufficient_stats_observation["user"]["sufficient_statistics"]["click_count"] = observation[
+            2:
+        ]
+        sufficient_stats_observation["doc"] = docs
+        return sufficient_stats_observation
 
-    agent = cluster_bandit_agent.ClusterBanditAgent(
-        self.dummy_observation_space(), action_space)
+    def test_step_with_bigger_slate(self):
+        # Initialize agent.
+        slate_size = 5
+        num_candidates = 5
+        action_space = spaces.MultiDiscrete(num_candidates * np.ones((slate_size,)))
+        agent = cluster_bandit_agent.ClusterBanditAgent(
+            self.dummy_observation_space(), action_space
+        )
 
-    # Create a set of documents
-    document_sampler = ie.IETopicDocumentSampler()
-    documents = {}
-    for i in range(num_candidates):
-      video = document_sampler.sample_document()
-      documents[i] = video.create_observation()
+        # Create a set of documents
+        # Explicit fixture keeps the quality-order assertion independent of RNG changes.
+        documents = {
+            i: {"cluster_id": topic, "quality": np.float32(quality)}
+            for i, (topic, quality) in enumerate([(1, 3), (0, 2), (0, 1), (1, 1), (1, 2)])
+        }
 
-    # Test that slate indices in correct range and length is correct
-    sufficient_stats_observation = self.doc_user_to_sufficient_stats(
-        documents, np.array([0, 0, 0, 0]))
+        # Past observation shows Topic 1 is better.
+        user_obs = np.array([1, 1, 0, 1])
+        sufficient_stats_observation = self.doc_user_to_sufficient_stats(documents, user_obs)
+        slate = agent.step(0, sufficient_stats_observation)
+        # Documents in Topic 0 sorted by quality: 1, 2.
+        # Documents in Topic 1 sorted by quality: 0, 4, 3.
+        self.assertAllEqual(slate, [0, 4, 3, 1, 2])
 
-    agent.step(1, sufficient_stats_observation)
+    def test_bundle_and_unbundle_trivial(self):
+        action_space = spaces.MultiDiscrete(2 * np.ones((2,)))
+        agent = cluster_bandit_agent.ClusterBanditAgent(
+            self.dummy_observation_space(), action_space
+        )
+        self.assertFalse(agent.unbundle("", 0, {}))
+        self.assertEqual(
+            {"base_agent_bundle_0": {"episode_num": 0}, "base_agent_bundle_1": {"episode_num": 0}},
+            agent.bundle_and_checkpoint("", 0),
+        )
 
-    bundle_dict = agent.bundle_and_checkpoint('', 0)
-    self.assertTrue(agent.unbundle('', 0, bundle_dict))
-    self.assertEqual(bundle_dict, agent.bundle_and_checkpoint('', 0))
+    def test_bundle_and_unbundle(self):
+        # Initialize agent
+        slate_size = 2
+        num_candidates = 5
+        action_space = spaces.MultiDiscrete(num_candidates * np.ones((slate_size,)))
+
+        agent = cluster_bandit_agent.ClusterBanditAgent(
+            self.dummy_observation_space(), action_space
+        )
+
+        # Create a set of documents
+        document_sampler = ie.IETopicDocumentSampler()
+        documents = {}
+        for i in range(num_candidates):
+            video = document_sampler.sample_document()
+            documents[i] = video.create_observation()
+
+        # Test that slate indices in correct range and length is correct
+        sufficient_stats_observation = self.doc_user_to_sufficient_stats(
+            documents, np.array([0, 0, 0, 0])
+        )
+
+        agent.step(1, sufficient_stats_observation)
+
+        bundle_dict = agent.bundle_and_checkpoint("", 0)
+        self.assertTrue(agent.unbundle("", 0, bundle_dict))
+        self.assertEqual(bundle_dict, agent.bundle_and_checkpoint("", 0))
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    test_case.main()

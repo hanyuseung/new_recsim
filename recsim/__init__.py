@@ -13,9 +13,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Module importing the core library."""
-from recsim import agent
-from recsim import choice_model
-from recsim import document
-from recsim import user
-from recsim import utils
+"""Recommendation simulation. Import environments and optional agents explicitly."""

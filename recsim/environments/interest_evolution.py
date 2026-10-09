@@ -3,13 +3,13 @@
 # Python3 only, gymnasium, improved clarity
 
 import numpy as np
-import gymnasium as gym
 from gymnasium import spaces
 
 from recsim import choice_model
 from recsim import document
 from recsim import user
 from recsim import utils
+from recsim.config import validate_environment_config
 from recsim.simulator import environment
 from recsim.simulator import recsim_gym
 
@@ -62,8 +62,8 @@ class IEvResponse(user.AbstractResponse):
                 ),
                 "liked": spaces.Discrete(2),
                 "quality": spaces.Box(
-                    low=cls.MIN_QUALITY_SCORE,
-                    high=cls.MAX_QUALITY_SCORE,
+                    low=-np.inf,
+                    high=np.inf,
                     shape=(),
                     dtype=np.float32,
                 ),
@@ -71,9 +71,9 @@ class IEvResponse(user.AbstractResponse):
                 # click_doc_id: -1 = no click, 0 ~ num_candidates-1 = 아이템 id
                 "click_doc_id": spaces.Box(
                     low=-1,
-                    high=10000,
+                    high=np.iinfo(np.int64).max,
                     shape=(),
-                    dtype=np.int32,
+                    dtype=np.int64,
                 ),
             }
         )
@@ -90,7 +90,7 @@ class IEvVideo(document.AbstractDocument):
         self,
         doc_id,
         features,
-        cluster_id=None,
+        cluster_id=0,
         video_length=None,
         quality=None,
     ):
@@ -127,7 +127,7 @@ class IEvVideoSampler(document.AbstractDocumentSampler):
         max_feature_value=1.0,
         video_length_mean=4.3,
         video_length_std=1.0,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(doc_ctor, **kwargs)
         self._doc_count = 0
@@ -144,9 +144,12 @@ class IEvVideoSampler(document.AbstractDocumentSampler):
             self.get_doc_ctor().NUM_FEATURES,
         )
 
-        video_length = min(
-            self._rng.normal(self._len_mean, self._len_std),
-            self.get_doc_ctor().MAX_VIDEO_LENGTH,
+        video_length = max(
+            0.0,
+            min(
+                self._rng.normal(self._len_mean, self._len_std),
+                self.get_doc_ctor().MAX_VIDEO_LENGTH,
+            ),
         )
 
         # item 개수 = candidate 수로 고정
@@ -155,7 +158,7 @@ class IEvVideoSampler(document.AbstractDocumentSampler):
         doc = self._doc_ctor(
             doc_id=doc_id,
             features=features,
-            cluster_id=None,
+            cluster_id=0,
             video_length=video_length,
             quality=1.0,
         )
@@ -169,11 +172,11 @@ class UtilityModelVideoSampler(document.AbstractDocumentSampler):
     def __init__(
         self,
         doc_ctor=IEvVideo,
-        num_candidates=20,        # ★ 추가: 고정 아이템 수
+        num_candidates=20,  # ★ 추가: 고정 아이템 수
         min_utility=-3.0,
         max_utility=3.0,
         video_length=4.0,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(doc_ctor, **kwargs)
         self._doc_count = 0
@@ -184,11 +187,11 @@ class UtilityModelVideoSampler(document.AbstractDocumentSampler):
         self._num_candidates = num_candidates  # ★ 저장
 
         trashy = np.linspace(self._min_u, 0, int(self._num_clusters * 0.7))
-        nutritious = np.linspace(0, self._max_u, int(self._num_clusters * 0.3))
+        nutritious = np.linspace(0, self._max_u, self._num_clusters - int(self._num_clusters * 0.7))
         self.cluster_means = np.concatenate([trashy, nutritious])
 
     def sample_document(self):
-        cid = self._rng.randint(0, self._num_clusters)
+        cid = self._rng.integers(0, self._num_clusters)
         features = np.zeros(self._num_clusters, dtype=np.float32)
         features[cid] = 1.0
         quality = self._rng.normal(self.cluster_means[cid], 0.1)
@@ -212,13 +215,12 @@ class UtilityModelVideoSampler(document.AbstractDocumentSampler):
 # User State
 # ============================================================
 class IEvUserState(user.AbstractUserState):
-
     NUM_FEATURES = 20
 
     def __init__(
         self,
         user_interests,
-        time_budget=None,
+        time_budget=200.0,
         score_scaling=None,
         attention_prob=None,
         no_click_mass=None,
@@ -274,14 +276,13 @@ class IEvUserState(user.AbstractUserState):
 # User Sampler
 # ============================================================
 class UtilityModelUserSampler(user.AbstractUserSampler):
-
     def __init__(
         self,
         user_ctor=IEvUserState,
         document_quality_factor=1.0,
         no_click_mass=1.0,
         min_normalizer=-1.0,
-        **kwargs
+        **kwargs,
     ):
         self._no_click_mass = no_click_mass
         self._min_normalizer = min_normalizer
@@ -289,9 +290,7 @@ class UtilityModelUserSampler(user.AbstractUserSampler):
         super().__init__(user_ctor, **kwargs)
 
     def sample_user(self):
-        interests = self._rng.uniform(
-            -1.0, 1.0, self.get_user_ctor().NUM_FEATURES
-        )
+        interests = self._rng.uniform(-1.0, 1.0, self.get_user_ctor().NUM_FEATURES)
 
         utility_norm = 1.0 / 3.4
         alpha = 0.9 * utility_norm
@@ -376,25 +375,19 @@ class IEvUserModel(user.AbstractUserModel):
         for doc, response in zip(slate_docs, responses):
             if response.clicked:
                 # score_documents는 self.choice_model.scores를 세팅하고, 반환값은 None
-                self.choice_model.score_documents(
-                    user_state, [doc.create_observation()]
-                )
+                self.choice_model.score_documents(user_state, [doc.create_observation()])
                 expected_utility = self.choice_model.scores[0]
 
                 mask = doc.features
                 target = doc.features - user_state.user_interests
                 alpha = compute_alpha(user_state.user_interests)
 
-                if np.random.rand() < np.dot(
-                    (user_state.user_interests + 1.0) * 0.5, mask
-                ):
+                if self._rng.random() < np.dot((user_state.user_interests + 1.0) * 0.5, mask):
                     user_state.user_interests += alpha * mask * target
                 else:
                     user_state.user_interests -= alpha * mask * target
 
-                user_state.user_interests = np.clip(
-                    user_state.user_interests, -1.0, 1.0
-                )
+                user_state.user_interests = np.clip(user_state.user_interests, -1.0, 1.0)
 
                 received = (
                     user_state.user_quality_factor * expected_utility
@@ -403,9 +396,7 @@ class IEvUserModel(user.AbstractUserModel):
 
                 user_state.time_budget -= response.watch_time
                 user_state.time_budget += (
-                    user_state.user_update_alpha
-                    * response.watch_time
-                    * received
+                    user_state.user_update_alpha * response.watch_time * received
                 )
                 return
 
@@ -424,6 +415,7 @@ def clicked_watchtime_reward(responses):
 # Environment Factory
 # ============================================================
 def create_environment(env_config):
+    env_config = validate_environment_config(env_config)
 
     user_model = IEvUserModel(
         slate_size=env_config["slate_size"],
@@ -452,4 +444,6 @@ def create_environment(env_config):
         reward_aggregator=clicked_watchtime_reward,
         metrics_aggregator=utils.aggregate_video_cluster_metrics,
         metrics_writer=utils.write_video_cluster_metrics,
+        seed=env_config["seed"],
+        max_episode_steps=env_config.get("max_episode_steps"),
     )
